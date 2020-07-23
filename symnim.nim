@@ -1,5 +1,6 @@
 import sets, hashes, strformat, sequtils, rationals, algorithm, tables
 import math
+export sets, rationals
 type
     SymNumberType* = Rational[int]
 
@@ -35,8 +36,8 @@ type
             discard 
     
     SymbolicExpression* = object
-        deps: HashSet[SymbolicVariable]
-        treeRepr: SymTreeRepr
+        deps*: HashSet[SymbolicVariable]
+        treeRepr*: SymTreeRepr
 
     SurveyObject = Table[ExprKind, tuple[count: int, indexes: seq[int]]] #object # Table[]
         #constants, variables, terms, factors, exponents: tuple[count: int, index: seq[int]]
@@ -254,7 +255,7 @@ proc prettyString(tree: SymTreeRepr): string =
         result = &"{($tree.funcKind)[0..^5]}({prettyString(tree.children[0])})"
 
 #### SymbolicExpression
-proc equal(a, b: SymbolicExpression): bool =
+proc equal*(a, b: SymbolicExpression): bool =
     if a.deps != b.deps: return false
     return a.treeRepr == b.treeRepr
 
@@ -625,7 +626,7 @@ proc `*`*(a, b: SymbolicExpression): SymbolicExpression =
 proc `**`*(a, b: SymbolicExpression): SymbolicExpression =
     constructExponentFromExpr(a, b)
 
-template `^`(a, b: SymbolicExpression): SymbolicExpression =
+template `^`*(a, b: SymbolicExpression): SymbolicExpression =
     constructExponentFromExpr(a, b)
 
 template `^`(a, b: SymTreeRepr): SymTreeRepr =

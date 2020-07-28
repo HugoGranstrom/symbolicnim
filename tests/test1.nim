@@ -113,6 +113,10 @@ suite "Derivatives & FuncCall":
   test "diff same variable":
     let result1 = diff(x, x)
     check $result1 == "1"
+
+  test "diff different variable":
+    let result1 = diff(x, y)
+    check $result1 == "0"
   
   test "diff x^2":
     let xSquare = x ^ 2

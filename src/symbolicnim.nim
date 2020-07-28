@@ -48,7 +48,7 @@ proc constructTerms(terms: seq[SymTreeRepr]): SymTreeRepr
 proc constructFactors(factors: seq[SymTreeRepr]): SymTreeRepr
 proc constructExponent*(base, exponent: SymTreeRepr): SymTreeRepr
 proc prettyString(tree: SymTreeRepr): string
-proc diff(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr
+proc diff_internal(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr
 #### Custom procs
 
 proc pop[T](list: var seq[T], index: int): T =
@@ -590,6 +590,7 @@ proc constructExponent*(base, exponent: SymTreeRepr): SymTreeRepr =
     elif base.kind == exprExponent:
         # rewrite (a^b)^c to a ^ (b*c)
         result = constructExponent(base.children[0], constructFactors(@[base.children[1], exponent]))
+    #elif base.kind == exprFuncCall and base.funcKind == expFunc: similiar to the above
     else:
         result = initExprExponent()
         result.deps = base.deps + exponent.deps
@@ -722,22 +723,22 @@ proc diffFuncCall(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr =
     let child = tree.children[0]
     case tree.funcKind
     of sinFunc:
-        result = constructFactors(@[cos(child), diff(dVar, child)])
+        result = constructFactors(@[cos(child), diff_internal(dVar, child)])
         return
     of cosFunc:
-        result = constructFactors(@[someNumberToSymTree(-1), sin(child), diff(dVar, child)])
+        result = constructFactors(@[someNumberToSymTree(-1), sin(child), diff_internal(dVar, child)])
         return
     of tanFunc:
-        result = constructFactors(@[constructExponent(cos(child), someNumberToSymTree(-2)), diff(dVar, child)])
+        result = constructFactors(@[constructExponent(cos(child), someNumberToSymTree(-2)), diff_internal(dVar, child)])
         return
     of expFunc:
-        result = constructFactors(@[tree, diff(dVar, child)])
+        result = constructFactors(@[tree, diff_internal(dVar, child)])
         return
     of lnFunc:
-        result = constructFactors(@[diff(dVar, child), constructExponent(child, someNumberToSymTree(-1))])
+        result = constructFactors(@[diff_internal(dVar, child), constructExponent(child, someNumberToSymTree(-1))])
         return
 
-proc diff(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr =
+proc diff_internal(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr =
     if not (dVar in tree.deps):
         # This should take care of constants
         return initExprConstant(0 // 1)
@@ -751,29 +752,44 @@ proc diff(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr =
     of exprTerms:
         var termDiffs = newSeq[SymTreeRepr](tree.children.len)
         for i in 0 .. tree.children.high:
-            termDiffs[i] = diff(dVar, tree.children[i])
+            termDiffs[i] = diff_internal(dVar, tree.children[i])
         result = constructTerms(termDiffs)
         return
     of exprFactors:
         var factorDiffTerms = newSeq[SymTreeRepr](tree.children.len)
         for i in 0 .. tree.children.high:
             var childCopy = tree.children
-            childCopy[i] = diff(dVar, childCopy[i])
+            childCopy[i] = diff_internal(dVar, childCopy[i])
             factorDiffTerms[i] = constructFactors(childCopy)
         result = constructTerms(factorDiffTerms)
         return
     of exprExponent:
         let base = tree.children[0]
         let exponent = tree.children[1]
-        #result = constructFactors(@[base ^ constructTerms(@[exponent, someNumberToSymTree(-1)]), constructTerms(@[constructFactors(@[exponent, diff(dVar, base)]), constructFactors(@[base, diff(dVar, exponent), ln(base)])])])
-        result = constructTerms(@[constructFactors(@[exponent, diff(dVar, base), base ^ constructTerms(@[exponent, -1])]), constructFactors(@[base ^ exponent, ln(base), diff(dVar, exponent)])])
+        #result = constructFactors(@[base ^ constructTerms(@[exponent, someNumberToSymTree(-1)]), constructTerms(@[constructFactors(@[exponent, diff_internal(dVar, base)]), constructFactors(@[base, diff_internal(dVar, exponent), ln(base)])])])
+        result = constructTerms(@[constructFactors(@[exponent, diff_internal(dVar, base), base ^ constructTerms(@[exponent, -1])]), constructFactors(@[base ^ exponent, ln(base), diff_internal(dVar, exponent)])])
     of exprFuncCall: return diffFuncCall(dVar, tree)
     of exprConstant: echo &"The constant {tree.value} should have been caught in the if-statement above! This is wrong!"
 
-proc diff*(dVar: SymbolicVariable, symExpr: SymbolicExpression): SymbolicExpression =
-    let tree = diff(dVar, symExpr.treeRepr)
+proc diff_internal(dVar: SymbolicVariable, symExpr: SymbolicExpression): SymbolicExpression =
+    let tree = diff_internal(dVar, symExpr.treeRepr)
     result.deps = tree.deps
     result.treeRepr = tree
+
+proc diff*(symExpr: SymbolicExpression, dVar: SymbolicVariable, derivOrder = 1): SymbolicExpression =
+    if derivOrder == 0: return symExpr
+    elif derivOrder == 1: return diff_internal(dVar, symExpr)
+    result = diff_internal(dVar, symExpr)
+    for i in 2 .. derivOrder:
+        result = diff_internal(dVar, result)
+
+proc diff*(symExpr: SymbolicExpression, dVars: varargs[SymbolicVariable]): SymbolicExpression =
+    if dVars.len == 0: return symExpr
+    elif dVars.len == 1: return diff_internal(dVars[0], symExpr)
+    result = diff_internal(dVars[0], symExpr)
+    for i in 1 .. dVars.high:
+        result = diff_internal(dVars[i], result)
+
 
 
 when isMainModule:
@@ -834,13 +850,13 @@ when isMainModule:
     echo (x*2 + 4*7) ^ (x*y + y*x)
     echo ((x*2 + 4*7) ^ (x*y + y*x)).deps
     echo "Derivatives:"
-    echo "dy/dx: ", diff(x, y)
-    echo "d/dx(y + x): ", diff(x, y + x)
-    echo "d/dx(2): ", diff(x, someNumberToSymExpr(2))
-    echo "d/dx(x*(x+1)): ", diff(x, x*(x+1))
-    echo "d/dx(x*(x+1)*y): ", diff(x, x*(x+1)*y)
-    timeit(diff(x, x*(x+1)*y*(x+2)*(x+3)), 1000, "Deriv")
-    echo diff(x, x*(x+1)*y*(x+2)*(x+3))
+    echo "dy/dx: ", diff_internal(x, y)
+    echo "d/dx(y + x): ", diff_internal(x, y + x)
+    echo "d/dx(2): ", diff_internal(x, someNumberToSymExpr(2))
+    echo "d/dx(x*(x+1)): ", diff_internal(x, x*(x+1))
+    echo "d/dx(x*(x+1)*y): ", diff_internal(x, x*(x+1)*y)
+    timeit(diff_internal(x, x*(x+1)*y*(x+2)*(x+3)), 1000, "Deriv")
+    echo diff_internal(x, x*(x+1)*y*(x+2)*(x+3))
     echo sin(x+1) + sin(1+x) + x*y
     echo "sin(sym_pi) = ", sin(sym_pi)
     echo cos(x+2) + cos(0 // 1) + cos(sym_pi + 1)
@@ -850,16 +866,17 @@ when isMainModule:
     echo exp(ln(x+2*y))
     echo tan(x)
     echo tan(0 // 1) + tan(sym_pi)
-    echo "d/dx(sin(x)) = ", diff(x, sin(x))
-    echo "d/dx(sin(2x)) = ", diff(x, sin(2*x))
-    echo "d/dx(cos(x)) = ", diff(x, cos(x))
-    echo "d/dx(cos(2x)) = ", diff(x, cos(2*x))
-    echo "d/dx(tan(x)) = ", diff(x, tan(x))
-    echo "d/dx(tan(2x)) = ", diff(x, tan(2*x))
-    echo "d/dx(exp(x)) = ", diff(x, exp(x))
-    echo "d/dx(exp(2x)) = ", diff(x, exp(2*x))
-    echo "d/dx(ln(x)) = ", diff(x, ln(x))
-    echo "d/dx(ln(2x)) = ", diff(x, ln(2*x))
-    echo "d/dx(x^2) = ", diff(x, x ^ 2)
-    echo "d/dx(x^x) = ", diff(x, x ^ x)
-    echo "d/dx((x+2)^3) = ", diff(x, (x+2)^3)
+    echo "d/dx(sin(x)) = ", diff_internal(x, sin(x))
+    echo "d/dx(sin(2x)) = ", diff_internal(x, sin(2*x))
+    echo "d/dx(cos(x)) = ", diff_internal(x, cos(x))
+    echo "d/dx(cos(2x)) = ", diff_internal(x, cos(2*x))
+    echo "d/dx(tan(x)) = ", diff_internal(x, tan(x))
+    echo "d/dx(tan(2x)) = ", diff_internal(x, tan(2*x))
+    echo "d/dx(exp(x)) = ", diff_internal(x, exp(x))
+    echo "d/dx(exp(2x)) = ", diff_internal(x, exp(2*x))
+    echo "d/dx(ln(x)) = ", diff_internal(x, ln(x))
+    echo "d/dx(ln(2x)) = ", diff_internal(x, ln(2*x))
+    echo "d/dx(x^2) = ", diff_internal(x, x ^ 2)
+    echo "d/dx(x^x) = ", diff_internal(x, x ^ x)
+    echo "d/dx(x^x) = ", diff(x ^ x, x)
+    echo "d/dx((x+2)^3) = ", diff_internal(x, (x+2)^3)

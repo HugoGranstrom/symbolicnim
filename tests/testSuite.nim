@@ -93,11 +93,7 @@ suite "Basic arithmetics tests":
     let result1 = 2 * terms
     check $result1 == "-12 + 4*x + 3*y^2 + -2*z"
 
-suite "Derivatives & FuncCall":
-  setup:
-    let x = newVariable("x")
-    let y = newVariable("y")
-    let z = newVariable("z")
+  echo "Derivatives and FuncCall"
   
   test "diff of constant":
     let result1 = diff(4, x)

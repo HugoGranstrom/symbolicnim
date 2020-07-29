@@ -8,13 +8,13 @@ srcDir        = "src"
 
 task test, "Runs the test suite":
   const filenames = ["tests/testSuite.nim"]
-  echo "Running tests using Refc GC:"
+  echo "####################\nRunning tests using Refc GC:\n####################"
   for name in filenames:
     exec "nim c -r --gc:refc -o:bin/testSuite " & name
-  echo "Running tests using GC:ARC:"
+  echo "####################\nRunning tests using GC:ARC:\n####################"
   for name in filenames:
     exec "nim c -r --gc:arc -o:bin/testSuite " & name
-  echo "Running tests using GC:ORC:"
+  echo "####################\nRunning tests using GC:ORC:\n####################"
   for name in filenames:
     exec "nim c -r --gc:orc -o:bin/testSuite " & name
 

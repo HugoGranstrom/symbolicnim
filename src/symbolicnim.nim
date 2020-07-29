@@ -22,9 +22,9 @@ type
         exprTerms,
         exprFactors,
 
-    SymTreeRepr* = object
+    SymbolicExpression* = object
         deps: HashSet[SymbolicVariable]
-        children: seq[SymTreeRepr]
+        children: seq[SymbolicExpression]
         case kind: ExprKind
         of exprVariable:
             name: string
@@ -35,20 +35,20 @@ type
         else:
             discard 
     
-    SymbolicExpression* = object
-        deps*: HashSet[SymbolicVariable]
-        treeRepr*: SymTreeRepr
+    #SymbolicExpression* = object
+    #    deps*: HashSet[SymbolicVariable]
+    #    treeRepr*: SymbolicExpression
 
     SurveyObject = Table[ExprKind, tuple[count: int, indexes: seq[int]]] #object # Table[]
         #constants, variables, terms, factors, exponents: tuple[count: int, index: seq[int]]
         #content: Table[ExprKind, tuple[count: int, index: seq[int]]]
 
 #### Forward declarations
-proc constructTerms(terms: seq[SymTreeRepr]): SymTreeRepr
-proc constructFactors(factors: seq[SymTreeRepr]): SymTreeRepr
-proc constructExponent*(base, exponent: SymTreeRepr): SymTreeRepr
-proc prettyString(tree: SymTreeRepr): string
-proc diff_internal(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr
+proc constructTerms(terms: seq[SymbolicExpression]): SymbolicExpression
+proc constructFactors(factors: seq[SymbolicExpression]): SymbolicExpression
+proc constructExponent*(base, exponent: SymbolicExpression): SymbolicExpression
+proc prettyString(tree: SymbolicExpression): string
+proc diff_internal(dVar: SymbolicVariable, tree: SymbolicExpression): SymbolicExpression
 #### Custom procs
 
 proc pop[T](list: var seq[T], index: int): T =
@@ -97,56 +97,46 @@ proc `$`*(symVar: SymbolicVariable): string =
     symVar.name
 
 converter symVarToSymExpr*(symVar: SymbolicVariable): SymbolicExpression =
-    var tree = SymTreeRepr(kind: exprVariable, deps: [symVar].toHashSet, children: @[], name: symVar.name)
-    result.deps = tree.deps
-    result.treeRepr = tree
+    SymbolicExpression(kind: exprVariable, deps: [symVar].toHashSet, name: symVar.name)
 
 converter rationalToSymExpr*(d: SymNumberType): SymbolicExpression =
-    var tree = SymTreeRepr(kind: exprConstant, value: d)
-    result.treeRepr = tree
-
-proc rationalToSymTree(d: SymNumberType): SymTreeRepr =
-    result = SymTreeRepr(kind: exprConstant, value: d)
+    result = SymbolicExpression(kind: exprConstant, value: d)
 
 converter someNumberToSymExpr*[T: SomeNumber](d: T): SymbolicExpression =
-    var tree = SymTreeRepr(kind: exprConstant, value: d.toRational)
-    result.treeRepr = tree
+    SymbolicExpression(kind: exprConstant, value: d.toRational)
 
-converter someNumberToSymTree[T: SomeNumber](d: T): SymTreeRepr =
-    SymTreeRepr(kind: exprConstant, value: d.toRational)
+#### SymbolicExpression
+proc initExprConstant(value: SymNumberType): SymbolicExpression =
+    SymbolicExpression(kind: exprConstant, value: value)
 
-#### SymTreeRepr
-proc initExprConstant(value: SymNumberType): SymTreeRepr =
-    SymTreeRepr(kind: exprConstant, value: value)
+proc initExprVariable(name: string): SymbolicExpression =
+    SymbolicExpression(kind: exprVariable, name: name)
 
-proc initExprVariable(name: string): SymTreeRepr =
-    SymTreeRepr(kind: exprVariable, name: name)
+proc initExprTerms(): SymbolicExpression =
+    SymbolicExpression(kind: exprTerms)
 
-proc initExprTerms(): SymTreeRepr =
-    SymTreeRepr(kind: exprTerms)
+proc initExprFactors(): SymbolicExpression =
+    SymbolicExpression(kind: exprFactors)
 
-proc initExprFactors(): SymTreeRepr =
-    SymTreeRepr(kind: exprFactors)
+proc initExprExponent(): SymbolicExpression =
+    SymbolicExpression(kind: exprExponent)
 
-proc initExprExponent(): SymTreeRepr =
-    SymTreeRepr(kind: exprExponent)
-
-proc initExprFuncCall(funcKind: FuncCallKind): SymTreeRepr =
-    SymTreeRepr(kind: exprFuncCall, funcKind: funcKind)
+proc initExprFuncCall(funcKind: FuncCallKind): SymbolicExpression =
+    SymbolicExpression(kind: exprFuncCall, funcKind: funcKind)
     
 
 # Where should we sort?
 # Customize loops to account for the fact it's sorted.
 # We can't assume == can just use children1 == children2 because we don't sort the order in the types themself. could be 1/2 , 5/7 or the other way
 # survey should be able to use this though.
-proc cmp(x, y: SymTreeRepr): int =
+proc cmp(x, y: SymbolicExpression): int =
     let xOrd = ord(x.kind)
     let yOrd = ord(y.kind)
     if xOrd == yOrd: return 0
     if xOrd < yOrd: return -1
     return 1
 
-proc `==`*(tree1, tree2: SymTreeRepr): bool =
+proc equal*(tree1, tree2: SymbolicExpression): bool =
     if tree1.kind == tree2.kind:
         case tree1.kind
         of exprConstant:
@@ -169,18 +159,20 @@ proc `==`*(tree1, tree2: SymTreeRepr): bool =
             for i in 0 .. tree1.children.high:
                 found_match = false
                 for j in available_indexes:
-                    if tree1.children[i] == tree2.children[j]:
+                    if tree1.children[i].equal(tree2.children[j]):
                         found_match = true
                         available_indexes.delete(available_indexes.find(j))
                         break
                 if not found_match: return false
         else:
-            if tree1.children != tree2.children: return false
+            #if tree1.children != tree2.children: return false
+            for i in 0 .. tree1.children.high:
+                if not equal(tree1.children[i], tree2.children[i]): return false
         return true
     else:
         return false
 
-proc contains*(tree: SymTreeRepr, kind: ExprKind): bool {.noSideEffect.} =
+proc contains*(tree: SymbolicExpression, kind: ExprKind): bool {.noSideEffect.} =
     if tree.children.len == 0:
         return false
     else:
@@ -189,10 +181,10 @@ proc contains*(tree: SymTreeRepr, kind: ExprKind): bool {.noSideEffect.} =
                 return true
         return false
 
-proc contains*(tree: SymTreeRepr, symVar: SymbolicVariable): bool {.noSideEffect.} =
+proc contains*(tree: SymbolicExpression, symVar: SymbolicVariable): bool {.noSideEffect.} =
     symVar in tree.deps
 
-proc survey(trees: openArray[SymTreeRepr]): SurveyObject =
+proc survey(trees: openArray[SymbolicExpression]): SurveyObject =
     for e in ExprKind:
         result[e] = (count: 0, indexes: newSeqOfCap[int]((trees.len / 2).toInt))
     for i in 0 .. trees.high:
@@ -216,10 +208,10 @@ proc survey(trees: openArray[SymTreeRepr]): SurveyObject =
             inc result[exprFuncCall].count
             result[exprFuncCall].indexes.add(i)
 
-template survey(tree: SymTreeRepr): SurveyObject =
+template survey(tree: SymbolicExpression): SurveyObject =
     survey(tree.children)
 
-proc prettyString(tree: SymTreeRepr): string =
+proc prettyString(tree: SymbolicExpression): string =
     case tree.kind
     of exprConstant:
         if isInteger(tree.value): return $tree.value.num
@@ -255,11 +247,8 @@ proc prettyString(tree: SymTreeRepr): string =
         result = &"{($tree.funcKind)[0..^5]}({prettyString(tree.children[0])})"
 
 #### SymbolicExpression
-proc equal*(a, b: SymbolicExpression): bool =
-    if a.deps != b.deps: return false
-    return a.treeRepr == b.treeRepr
 
-proc survey(symExprs: openArray[SymbolicExpression]): SurveyObject =
+#[proc survey(symExprs: openArray[SymbolicExpression]): SurveyObject =
     for e in ExprKind:
         result[e] = (count: 0, indexes: newSeqOfCap[int]((symExprs.len / 2).toInt))
     for i in 0 .. symExprs.high:
@@ -282,16 +271,14 @@ proc survey(symExprs: openArray[SymbolicExpression]): SurveyObject =
             of exprFuncCall:
                 inc result[exprFuncCall].count
                 result[exprFuncCall].indexes.add(i)
-
-template contains*(symExpr: SymbolicExpression, kind: ExprKind): bool =
-    kind in symExpr.treeRepr
+]#
 
 proc contains*(symExprs: openArray[SymbolicExpression], kind: ExprKind): bool =
     for i in 0 .. symExprs.high:
         if kind in symExprs[i]: return true
     return false
 
-proc simplifyConstantMul(result_factors: var seq[SymTreeRepr]) =
+proc simplifyConstantMul(result_factors: var seq[SymbolicExpression]) =
     ## collects all constants into one constant.
     ## Ex: 1 * 2 * x * 3 -> 6 * x
     ## Special case: 1 * x -> x
@@ -304,12 +291,12 @@ proc simplifyConstantMul(result_factors: var seq[SymTreeRepr]) =
             if result_factors[i].value == 0 // 1:
                 result_factors = @[initExprConstant(0 // 1)]
             product *= result_factors[i].value
-        #result_factors.keepIf(proc (x: SymTreeRepr): bool = x.kind != exprConstant)
+        #result_factors.keepIf(proc (x: SymbolicExpression): bool = x.kind != exprConstant)
         result_factors.delete(survey[exprConstant].indexes[0], survey[exprConstant].indexes[^1])
         if product != 1 // 1 or result_factors.len == 0:
             result_factors.insert(initExprConstant(product), 0) # we know it should go here, no need to sort after this.
 
-proc simplifyConstantMulTerm(result_factors: var seq[SymTreeRepr]) =
+proc simplifyConstantMulTerm(result_factors: var seq[SymbolicExpression]) =
     ## distribute a constant in a term.
     ## Ex: 2 * (x + y) -> 2*x + 2*y
     if result_factors.len == 2:
@@ -317,22 +304,22 @@ proc simplifyConstantMulTerm(result_factors: var seq[SymTreeRepr]) =
         if survey[exprConstant].count == 1 and survey[exprTerms].count == 1:
             let constant = result_factors[survey[exprConstant].indexes[0]]
             let term = result_factors[survey[exprTerms].indexes[0]]
-            var terms_seq = newSeqOfCap[SymTreeRepr](term.children.len)
+            var terms_seq = newSeqOfCap[SymbolicExpression](term.children.len)
             for i in 0 .. term.children.high:
-                let factor_seq: seq[SymTreeRepr] = @[constant, term.children[i]]
+                let factor_seq: seq[SymbolicExpression] = @[constant, term.children[i]]
                 terms_seq.add constructFactors(factor_seq)
             result_factors = @[constructTerms(terms_seq)]
 
-proc simplifySameBaseExponents(result_factors: var seq[SymTreeRepr]) =
+proc simplifySameBaseExponents(result_factors: var seq[SymbolicExpression]) =
     let survey = survey(result_factors)
     var avail_indices = toSeq(0 .. result_factors.high) # use a hash-something for this perhaps?
-    var new_factors = newSeqOfCap[SymTreeRepr](result_factors.len)
+    var new_factors = newSeqOfCap[SymbolicExpression](result_factors.len)
     for i in 0 .. result_factors.high:
         if i in avail_indices:
             let firstFactor = result_factors[i]
             let firstKind = firstFactor.kind
-            var base: SymTreeRepr
-            var exponents: seq[SymTreeRepr]
+            var base: SymbolicExpression
+            var exponents: seq[SymbolicExpression]
             if firstKind == exprExponent:
                 base = firstFactor.children[0]
                 exponents = @[firstFactor.children[1]]
@@ -342,24 +329,24 @@ proc simplifySameBaseExponents(result_factors: var seq[SymTreeRepr]) =
                 continue
             else:
                 base = firstFactor
-                exponents = @[someNumberToSymTree(1)]
+                exponents = @[someNumberToSymExpr(1)]
             avail_indices.delete(avail_indices.find(i))
             var delete_indices: seq[int]
             for j in avail_indices:
                 if j in survey[exprExponent].indexes:
                     let secondBase = result_factors[j].children[0]
                     let secondExponent = result_factors[j].children[1]
-                    if base == secondBase:
+                    if base.equal(secondBase):
                         exponents.add secondExponent
                         delete_indices.add j
                 else:
                     let secondBase = result_factors[j]
-                    if base == secondBase:
-                        exponents.add someNumberToSymTree(1)
+                    if base.equal(secondBase):
+                        exponents.add someNumberToSymExpr(1)
                         delete_indices.add j
             for j in delete_indices:
                 avail_indices.delete(avail_indices.find(j))
-            var exponent: SymTreeRepr
+            var exponent: SymbolicExpression
             if exponents.len == 1:
                 exponent = exponents[0]
             else:
@@ -372,10 +359,10 @@ proc simplifySameBaseExponents(result_factors: var seq[SymTreeRepr]) =
         
             
 
-proc constructFactors(factors: seq[SymTreeRepr]): SymTreeRepr =
-    # make this work with a seq of SymTreeREpr instead. Then put a wrapper around it that converts varargs to seq and extracts the treeRepr that is then passed to here.
+proc constructFactors(factors: seq[SymbolicExpression]): SymbolicExpression =
+    # make this work with a seq of SymbolicExpression instead. Then put a wrapper around it that converts varargs to seq and extracts the treeRepr that is then passed to here.
     # then we can collect a seq of symTrees and pass them here, for example when we calculate the final exponent.
-    var result_factors = newSeqOfCap[SymTreeRepr](factors.len)
+    var result_factors = newSeqOfCap[SymbolicExpression](factors.len)
     var survey = survey(factors)
     if survey[exprFactors].count != 0:
         for i in survey[exprFactors].indexes:
@@ -415,23 +402,24 @@ proc constructFactors(factors: seq[SymTreeRepr]): SymTreeRepr =
     result_factors.sort(cmp)
     result.children = result_factors
 
-proc constructFactorsFromExpr*(factors: varargs[SymbolicExpression]): SymbolicExpression =
-    var result_factors = newSeq[SymTreeRepr](factors.len)
+#[proc constructFactorsFromExpr*(factors: varargs[SymbolicExpression]): SymbolicExpression =
+    var result_factors = newSeq[SymbolicExpression](factors.len)
     for i in 0 .. factors.high:
         result_factors[i] = factors[i].treeRepr
     let result_tree = constructFactors(result_factors)
     result.deps = result_tree.deps
     result.treeRepr = result_tree
+    ]#
 
 
-proc simplifyConstantAdd(result_terms: var seq[SymTreeRepr]) =
+proc simplifyConstantAdd(result_terms: var seq[SymbolicExpression]) =
     let survey = survey(result_terms)
     if survey[exprConstant].count > 1: # This should be done last!
         # we have multiple constants that can be fused. if sum is 0, remove it.
         var result_constant = 0 // 1
         for i in survey[exprConstant].indexes:
             result_constant += result_terms[i].value
-        result_terms.keepIf(proc(x: SymTreeRepr): bool = x.kind != exprConstant) # remove all exprConstant
+        result_terms.keepIf(proc(x: SymbolicExpression): bool = x.kind != exprConstant) # remove all exprConstant
         if result_constant != 0 // 1:
             let newConstant = initExprConstant(result_constant)
             result_terms.add(newConstant)
@@ -441,7 +429,7 @@ proc simplifyConstantAdd(result_terms: var seq[SymTreeRepr]) =
             result_terms.delete(i)
 
 
-proc separateConstantFromFactors(factor: SymTreeRepr): tuple[constant: SymNumberType, bare_factor: SymTreeRepr] =
+proc separateConstantFromFactors(factor: SymbolicExpression): tuple[constant: SymNumberType, bare_factor: SymbolicExpression] =
     assert factor.kind == exprFactors, &"factor must be of kind exprFactors but was of {factor.kind}"
     # assume all factors are sorted!
     #echo "---------------1"
@@ -466,16 +454,16 @@ proc separateConstantFromFactors(factor: SymTreeRepr): tuple[constant: SymNumber
     #echo constant, " ", base.prettyString
     #echo "---------------2"
 
-proc simplifyConstantMultipleTerms(result_terms: var seq[SymTreeRepr]) =
+proc simplifyConstantMultipleTerms(result_terms: var seq[SymbolicExpression]) =
     #result_terms.sort(cmp)
     let survey = survey(result_terms)
     var avail_indices = toSeq(0 .. result_terms.high)
-    var new_terms = newSeqOfCap[SymTreeRepr](result_terms.len)
+    var new_terms = newSeqOfCap[SymbolicExpression](result_terms.len)
     for i in 0 .. result_terms.high:
         if i in avail_indices:
             let firstTerm = result_terms[i]
             let firstKind = firstTerm.kind
-            var base: SymTreeRepr
+            var base: SymbolicExpression
             var constant_factor: SymNumberType
             if firstKind == exprFactors:
                 # remove constant
@@ -504,7 +492,7 @@ proc simplifyConstantMultipleTerms(result_terms: var seq[SymTreeRepr]) =
                     if j in avail_indices:
                         #echo "Andra: ", result_terms[j].prettyString
                         #echo base == result_terms[j]
-                        if base == result_terms[j]:
+                        if base.equal(result_terms[j]):
                             constant_factor += 1 // 1
                             avail_indices.delete(avail_indices.find(j))
                             matches += 1
@@ -513,7 +501,7 @@ proc simplifyConstantMultipleTerms(result_terms: var seq[SymTreeRepr]) =
                 if j in avail_indices:
                     let (constant, bare_factor) = separateConstantFromFactors(result_terms[j])
                     #echo "Andra: ", result_terms[j].prettyString
-                    if base == bare_factor:
+                    if base.equal(bare_factor):
                         constant_factor += constant
                         avail_indices.delete(avail_indices.find(j))
                         matches += 1
@@ -526,12 +514,12 @@ proc simplifyConstantMultipleTerms(result_terms: var seq[SymTreeRepr]) =
                     #echo constant_factor, " ", prettyString(base)
                     #var new_factor = initExprFactors()
                     #new_factor.children = @[rationalToSymTree(constant_factor), base] # base can be a factor so we must unpack children if it is a exprFactors
-                    let new_factor = constructFactors(@[rationalToSymTree(constant_factor), base])
+                    let new_factor = constructFactors(@[rationalToSymExpr(constant_factor), base])
                     new_terms.add new_factor
     result_terms = new_terms
 
-proc constructTerms(terms: seq[SymTreeRepr]): SymTreeRepr =
-    var result_terms = newSeqOfCap[SymTreeRepr](terms.len)
+proc constructTerms(terms: seq[SymbolicExpression]): SymbolicExpression =
+    var result_terms = newSeqOfCap[SymbolicExpression](terms.len)
     var survey = survey(terms)
     if survey[exprTerms].count != 0:
         # we have terms here! Just concat them with terms and continue with simplifications then?
@@ -559,16 +547,17 @@ proc constructTerms(terms: seq[SymTreeRepr]): SymTreeRepr =
     result_terms.sort(cmp)
     result.children = result_terms
 
-proc constructTermsFromExpr*(terms: varargs[SymbolicExpression]): SymbolicExpression =
-    var result_terms = newSeq[SymTreeRepr](terms.len)
+#[proc constructTermsFromExpr*(terms: varargs[SymbolicExpression]): SymbolicExpression =
+    var result_terms = newSeq[SymbolicExpression](terms.len)
     for i in 0 .. terms.high:
         result_terms[i] = terms[i].treeRepr
     let result_tree = constructTerms(result_terms)
     result.deps = result_tree.deps
     result.treeRepr = result_tree
+    ]#
 
 
-proc constructExponent*(base, exponent: SymTreeRepr): SymTreeRepr =
+proc constructExponent*(base, exponent: SymbolicExpression): SymbolicExpression =
     if exponent.kind == exprConstant:
         if exponent.value == 0 // 1:
             return initExprConstant(1 // 1) # This means 0 ^ 0 is evaluated as 1
@@ -583,7 +572,7 @@ proc constructExponent*(base, exponent: SymTreeRepr): SymTreeRepr =
             return initExprConstant(pow(base.value, exponent.value.toInt))
     if base.kind == exprFactors:
         # rewrite (a*b*c) ^ d as a^d * b^d * c^d
-        var factors = newSeq[SymTreeRepr](base.children.len)
+        var factors = newSeq[SymbolicExpression](base.children.len)
         for i in 0 .. base.children.high:
             factors[i] = constructExponent(base.children[i], exponent)
         result = constructFactors(factors)
@@ -596,16 +585,22 @@ proc constructExponent*(base, exponent: SymTreeRepr): SymTreeRepr =
         result.deps = base.deps + exponent.deps
         result.children = @[base, exponent]
 
-proc constructExponentFromExpr*(a, b: SymbolicExpression): SymbolicExpression =
+#[proc constructExponentFromExpr*(a, b: SymbolicExpression): SymbolicExpression =
     let tree = constructExponent(a.treeRepr, b.treeRepr)
     result.deps = tree.deps
     result.treeRepr = tree
+    ]#
 
+
+
+
+#[ Term-rewriting templates
 template addManyExpr{`+` * terms}(terms: SymbolicExpression): SymbolicExpression =
-    constructTermsFromExpr(terms)
+    constructTerms(terms)
 
 template mulManyExpr{`*` * factors}(factors: SymbolicExpression): SymbolicExpression =
-    constructFactorsFromExpr(factors)
+    constructFactors(factors)
+]#
 
 template `-`*(a: SymbolicExpression): SymbolicExpression =
     -1 * a
@@ -614,32 +609,24 @@ template `-`*(a, b: SymbolicExpression): SymbolicExpression =
     a + -b
 
 proc `$`*(symExpr: SymbolicExpression): string =
-    prettyString(symExpr.treeRepr)
+    prettyString(symExpr)
 
 proc `+`*(a, b: SymbolicExpression): SymbolicExpression =
-    result = constructTermsFromExpr(a, b)
+    result = constructTerms(@[a, b])
     #raise newException(ValueError, "`+` proc shouldn't be called. If you see this it means that the term rewriting macro has failed to see this addition. Please report this issue on the Github repo along with you code")
 
 proc `*`*(a, b: SymbolicExpression): SymbolicExpression =
-    result = constructFactorsFromExpr(a, b)
+    result = constructFactors(@[a, b])
     #raise newException(ValueError, "`*` proc shouldn't be called. If you see this it means that the term rewriting macro has failed to see this addition. Please report this issue on the Github repo along with you code")
 
-proc `**`*(a, b: SymbolicExpression): SymbolicExpression =
-    constructExponentFromExpr(a, b)
-
-template `^`*(a, b: SymbolicExpression): SymbolicExpression =
-    constructExponentFromExpr(a, b)
-
-template `^`(a, b: SymTreeRepr): SymTreeRepr =
+proc `^`*(a, b: SymbolicExpression): SymbolicExpression =
     constructExponent(a, b)
 
 proc `/`*(a, b: SymbolicExpression): SymbolicExpression =
-    a * constructExponentFromExpr(b, someNumberToSymExpr(-1))
+    a * constructExponent(b, someNumberToSymExpr(-1))
 
-template `/`(a, b: SymTreeRepr): SymTreeRepr =
-    constructFactors(@[a, constructExponent(b, someNumberToSymExpr(-1))])
 
-proc sin(a: SymTreeRepr): SymTreeRepr =
+proc sin*(a: SymbolicExpression): SymbolicExpression =
     if a.kind == exprConstant:
         if a.value == 0 // 1:
             return initExprConstant(0 // 1)
@@ -649,13 +636,8 @@ proc sin(a: SymTreeRepr): SymTreeRepr =
     result = initExprFuncCall(sinFunc)
     result.children = @[a]
     result.deps = a.deps
-    
-proc sin*(a: SymbolicExpression): SymbolicExpression =
-    let tree = sin(a.treeRepr)
-    result.deps = tree.deps
-    result.treeRepr = tree
 
-proc cos(a: SymTreeRepr): SymTreeRepr =
+proc cos*(a: SymbolicExpression): SymbolicExpression =
     if a.kind == exprConstant:
         if a.value == 0 // 1:
             return initExprConstant(1 // 1)
@@ -665,13 +647,8 @@ proc cos(a: SymTreeRepr): SymTreeRepr =
     result = initExprFuncCall(cosFunc)
     result.children = @[a]
     result.deps = a.deps
-    
-proc cos*(a: SymbolicExpression): SymbolicExpression =
-    let tree = cos(a.treeRepr)
-    result.deps = tree.deps
-    result.treeRepr = tree
 
-proc tan(a: SymTreeRepr): SymTreeRepr =
+proc tan*(a: SymbolicExpression): SymbolicExpression =
     if a.kind == exprConstant:
         if a.value == 0 // 1:
             return initExprConstant(0 // 1)
@@ -681,13 +658,8 @@ proc tan(a: SymTreeRepr): SymTreeRepr =
     result = initExprFuncCall(tanFunc)
     result.children = @[a]
     result.deps = a.deps
-    
-proc tan*(a: SymbolicExpression): SymbolicExpression =
-    let tree = tan(a.treeRepr)
-    result.deps = tree.deps
-    result.treeRepr = tree
 
-proc ln(a: SymTreeRepr): SymTreeRepr =
+proc ln*(a: SymbolicExpression): SymbolicExpression =
     if a.kind == exprConstant:
         if a.value == 0 // 1:
             raise newException(ValueError, "ln(0) is undefined, wait until limits are added...")
@@ -698,13 +670,9 @@ proc ln(a: SymTreeRepr): SymTreeRepr =
     result = initExprFuncCall(lnFunc)
     result.children = @[a]
     result.deps = a.deps
-    
-proc ln*(a: SymbolicExpression): SymbolicExpression =
-    let tree = ln(a.treeRepr)
-    result.deps = tree.deps
-    result.treeRepr = tree
 
-proc exp(a: SymTreeRepr): SymTreeRepr =
+
+proc exp*(a: SymbolicExpression): SymbolicExpression =
     if a.kind == exprConstant:
         if a.value == 0 // 1:
             return initExprConstant(1 // 1)
@@ -713,32 +681,27 @@ proc exp(a: SymTreeRepr): SymTreeRepr =
     result = initExprFuncCall(expFunc)
     result.children = @[a]
     result.deps = a.deps
-    
-proc exp*(a: SymbolicExpression): SymbolicExpression =
-    let tree = exp(a.treeRepr)
-    result.deps = tree.deps
-    result.treeRepr = tree
 
-proc diffFuncCall(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr =
+proc diffFuncCall(dVar: SymbolicVariable, tree: SymbolicExpression): SymbolicExpression =
     let child = tree.children[0]
     case tree.funcKind
     of sinFunc:
         result = constructFactors(@[cos(child), diff_internal(dVar, child)])
         return
     of cosFunc:
-        result = constructFactors(@[someNumberToSymTree(-1), sin(child), diff_internal(dVar, child)])
+        result = constructFactors(@[someNumberToSymExpr(-1), sin(child), diff_internal(dVar, child)])
         return
     of tanFunc:
-        result = constructFactors(@[constructExponent(cos(child), someNumberToSymTree(-2)), diff_internal(dVar, child)])
+        result = constructFactors(@[constructExponent(cos(child), someNumberToSymExpr(-2)), diff_internal(dVar, child)])
         return
     of expFunc:
         result = constructFactors(@[tree, diff_internal(dVar, child)])
         return
     of lnFunc:
-        result = constructFactors(@[diff_internal(dVar, child), constructExponent(child, someNumberToSymTree(-1))])
+        result = constructFactors(@[diff_internal(dVar, child), constructExponent(child, someNumberToSymExpr(-1))])
         return
 
-proc diff_internal(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr =
+proc diff_internal(dVar: SymbolicVariable, tree: SymbolicExpression): SymbolicExpression =
     if not (dVar in tree.deps):
         # This should take care of constants
         return initExprConstant(0 // 1)
@@ -750,13 +713,13 @@ proc diff_internal(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr =
             echo &"A variable has a dependece on another: {tree.name}({dVar.name})"
             return initExprConstant(0 // 1)
     of exprTerms:
-        var termDiffs = newSeq[SymTreeRepr](tree.children.len)
+        var termDiffs = newSeq[SymbolicExpression](tree.children.len)
         for i in 0 .. tree.children.high:
             termDiffs[i] = diff_internal(dVar, tree.children[i])
         result = constructTerms(termDiffs)
         return
     of exprFactors:
-        var factorDiffTerms = newSeq[SymTreeRepr](tree.children.len)
+        var factorDiffTerms = newSeq[SymbolicExpression](tree.children.len)
         for i in 0 .. tree.children.high:
             var childCopy = tree.children
             childCopy[i] = diff_internal(dVar, childCopy[i])
@@ -770,11 +733,6 @@ proc diff_internal(dVar: SymbolicVariable, tree: SymTreeRepr): SymTreeRepr =
         result = constructTerms(@[constructFactors(@[exponent, diff_internal(dVar, base), base ^ constructTerms(@[exponent, -1])]), constructFactors(@[base ^ exponent, ln(base), diff_internal(dVar, exponent)])])
     of exprFuncCall: return diffFuncCall(dVar, tree)
     of exprConstant: echo &"The constant {tree.value} should have been caught in the if-statement above! This is wrong!"
-
-proc diff_internal(dVar: SymbolicVariable, symExpr: SymbolicExpression): SymbolicExpression =
-    let tree = diff_internal(dVar, symExpr.treeRepr)
-    result.deps = tree.deps
-    result.treeRepr = tree
 
 proc diff*(symExpr: SymbolicExpression, dVar: SymbolicVariable, derivOrder = 1): SymbolicExpression =
     if derivOrder == 0: return symExpr
@@ -828,25 +786,15 @@ when isMainModule:
     echo 2*x*y + x*y + 3 * x*y
     echo 3*x*y - 7 * x*y
     echo 2*x*y + x*y + 3 * x*y + y*x + y*x*x
-    echo x ** y
-    echo (x+1) ** 2
-    echo (x+1) ** 1
-    echo (x+1) ** 0
-    echo 0 ** 0
     echo x / 2
     echo x / y
-    echo (x ** 2) ** y
-    echo ((x+y*2) ** (x+1)) ** ((y+1) ** 2)
-    echo (x*y) ** -2
-    echo ((2*x)**(x+1)) ** (3 // 2)
-    echo (2*x) ** 1
     echo "Fuse mult:"
     echo x * x
     echo x * x * x ^ 3
     echo x^2 * x^4
     echo x ^ 6 / x ^ 3
     echo (x+y*1) ^ 2 / (x+y) ^ 2
-    echo constructTermsFromExpr(someNumberToSymExpr(1), someNumberToSymExpr(-1))
+    echo constructTerms(@[someNumberToSymExpr(1), someNumberToSymExpr(-1)])
     echo (x*2 + 4*7) ^ (x*y + y*x)
     echo ((x*2 + 4*7) ^ (x*y + y*x)).deps
     echo "Derivatives:"

@@ -93,6 +93,11 @@ suite "Basic arithmetics tests":
     let result1 = 2 * terms
     check $result1 == "-12 + 4*x + 3*y^2 + -2*z"
 
+  test "not equal":
+    check not equal(x, y)
+    check not equal(x + 1, x - 1)
+    check not equal(y*x + x*y, x*y)
+
   echo "Derivatives and FuncCall"
   
   test "diff of constant":

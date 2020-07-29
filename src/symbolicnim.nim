@@ -106,6 +106,10 @@ converter someNumberToSymExpr*[T: SomeNumber](d: T): SymbolicExpression =
     SymbolicExpression(kind: exprConstant, value: d.toRational)
 
 #### SymbolicExpression
+
+proc `$`*(symExpr: SymbolicExpression): string =
+    prettyString(symExpr)
+
 proc initExprConstant(value: SymNumberType): SymbolicExpression =
     SymbolicExpression(kind: exprConstant, value: value)
 
@@ -263,6 +267,7 @@ proc simplifyConstantMul(result_factors: var seq[SymbolicExpression]) =
         for i in survey[exprConstant].indexes:
             if result_factors[i].value == 0 // 1:
                 result_factors = @[initExprConstant(0 // 1)]
+                return
             product *= result_factors[i].value
         #result_factors.keepIf(proc (x: SymbolicExpression): bool = x.kind != exprConstant)
         result_factors.delete(survey[exprConstant].indexes[0], survey[exprConstant].indexes[^1])
@@ -577,9 +582,6 @@ template `-`*(a: SymbolicExpression): SymbolicExpression =
 template `-`*(a, b: SymbolicExpression): SymbolicExpression =
     a + -b
 
-proc `$`*(symExpr: SymbolicExpression): string =
-    prettyString(symExpr)
-
 proc `+`*(a, b: SymbolicExpression): SymbolicExpression =
     result = constructTerms(@[a, b])
     #raise newException(ValueError, "`+` proc shouldn't be called. If you see this it means that the term rewriting macro has failed to see this addition. Please report this issue on the Github repo along with you code")
@@ -719,83 +721,11 @@ proc diff*(symExpr: SymbolicExpression, dVars: varargs[SymbolicVariable]): Symbo
     for i in 1 .. dVars.high:
         result = diff_internal(dVars[i], result)
 
-
-
 when isMainModule:
-    import numericalnim
-    var x = newVariable("x")
-    var y = newVariable("y")
-    var a = x + y
-    echo x + 1 - 1 - 2 + 2
-    echo x * x * -a
-    #timeit(equal(a * 2 + y * (x + y), a * 2 + y * (x + y)), 10000, "With TR")
-    echo 3*(x * y + 2 * x * 3)
-    echo equal(a * 2 + y + x + y, 2*(y+x) + x + y + y)
-    echo a * 2
-    echo 2*(y+x)
-    let c = 2*x*a + x
-    let d = 2 * x * (y + x) + x
-    #echo 2*(x+x) - 7 * y # seems like the term rewriting macro can't do enough passes to cover all expressions.
-    echo c
-    echo d
-    echo equal(c, d)
-    #timeit(equal(a * 2 + y * (x + y), a * 2 + y * (x + y)), 10000, "Without TR")
-    echo equal(x*y, y*x)
-    echo equal(x + y, y + x)
-    echo 1 * x
-    echo someNumberToSymExpr(1) * someNumberToSymExpr(1)
-    echo x - x
-    echo sym_pi * sym_e
-    echo "Kolla här:"
-    echo (x + 2 - 1 + 4) * (y + 1 - 1)
-    echo x + x + x
-    echo 3*x + x + x
-    echo (x*y + 1) + (x*y + 1)
-    echo 5*(x*y + 1) + (x*y + 1)
-    echo 5*(x*y + 1) - 7*(x*y + 1)
-    echo x*y + x*y
-    echo 2*x*y + x*y + 3 * x*y
-    echo 3*x*y - 7 * x*y
-    echo 2*x*y + x*y + 3 * x*y + y*x + y*x*x
-    echo x / 2
-    echo x / y
-    echo "Fuse mult:"
-    echo x * x
-    echo x * x * x ^ 3
-    echo x^2 * x^4
-    echo x ^ 6 / x ^ 3
-    echo (x+y*1) ^ 2 / (x+y) ^ 2
-    echo constructTerms(@[someNumberToSymExpr(1), someNumberToSymExpr(-1)])
-    echo (x*2 + 4*7) ^ (x*y + y*x)
-    echo ((x*2 + 4*7) ^ (x*y + y*x)).deps
-    echo "Derivatives:"
-    echo "dy/dx: ", diff_internal(x, y)
-    echo "d/dx(y + x): ", diff_internal(x, y + x)
-    echo "d/dx(2): ", diff_internal(x, someNumberToSymExpr(2))
-    echo "d/dx(x*(x+1)): ", diff_internal(x, x*(x+1))
-    echo "d/dx(x*(x+1)*y): ", diff_internal(x, x*(x+1)*y)
-    timeit(diff_internal(x, x*(x+1)*y*(x+2)*(x+3)), 1000, "Deriv")
-    echo diff_internal(x, x*(x+1)*y*(x+2)*(x+3))
-    echo sin(x+1) + sin(1+x) + x*y
-    echo "sin(sym_pi) = ", sin(sym_pi)
-    echo cos(x+2) + cos(0 // 1) + cos(sym_pi + 1)
-    echo ln(x) + ln(3 // 1)
-    echo exp(0 // 1) + exp(1 // 1) + exp(2*x) + exp(2*x)
-    echo ln(exp(x+1))
-    echo exp(ln(x+2*y))
-    echo tan(x)
-    echo tan(0 // 1) + tan(sym_pi)
-    echo "d/dx(sin(x)) = ", diff_internal(x, sin(x))
-    echo "d/dx(sin(2x)) = ", diff_internal(x, sin(2*x))
-    echo "d/dx(cos(x)) = ", diff_internal(x, cos(x))
-    echo "d/dx(cos(2x)) = ", diff_internal(x, cos(2*x))
-    echo "d/dx(tan(x)) = ", diff_internal(x, tan(x))
-    echo "d/dx(tan(2x)) = ", diff_internal(x, tan(2*x))
-    echo "d/dx(exp(x)) = ", diff_internal(x, exp(x))
-    echo "d/dx(exp(2x)) = ", diff_internal(x, exp(2*x))
-    echo "d/dx(ln(x)) = ", diff_internal(x, ln(x))
-    echo "d/dx(ln(2x)) = ", diff_internal(x, ln(2*x))
-    echo "d/dx(x^2) = ", diff_internal(x, x ^ 2)
-    echo "d/dx(x^x) = ", diff_internal(x, x ^ x)
-    echo "d/dx(x^x) = ", diff(x ^ x, x)
-    echo "d/dx((x+2)^3) = ", diff_internal(x, (x+2)^3)
+    let x = newVariable("x")
+    let y = newVariable("y")
+    let expr1 = x*y + x/y
+    echo diff(expr1, x)
+    echo diff(expr1, y)
+    echo diff(expr1, x, y)
+    echo diff(expr1, y, x)

@@ -10,6 +10,18 @@ suite "Basic arithmetics tests":
     let a = newVariable("a")
     let b = newVariable("b")
   
+  test "0*x = 0":
+    let result1 = 0 * x
+    check $result1 == "0"
+    let result2 = x * 2 * 4 * 0 * y * 3
+    check $result2 == "0"
+
+  test "1*x = x":
+    let result1 = x * 1
+    check $result1 == "x"
+    let result2 = 2*x*3*1
+    check $result2 == "6*x"
+
   test "Negate variable":
     let result1 = -x
     check $result1 == "-1*x"

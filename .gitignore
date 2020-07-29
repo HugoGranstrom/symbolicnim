@@ -1,5 +1,6 @@
 nimcache/
 nimblecache/
+/bin
 htmldocs/
 *.exe
 *.o

@@ -246,33 +246,6 @@ proc prettyString(tree: SymbolicExpression): string =
     of exprFuncCall:
         result = &"{($tree.funcKind)[0..^5]}({prettyString(tree.children[0])})"
 
-#### SymbolicExpression
-
-#[proc survey(symExprs: openArray[SymbolicExpression]): SurveyObject =
-    for e in ExprKind:
-        result[e] = (count: 0, indexes: newSeqOfCap[int]((symExprs.len / 2).toInt))
-    for i in 0 .. symExprs.high:
-        case symExprs[i].treeRepr.kind
-            of exprConstant:
-                inc result[exprConstant].count
-                result[exprConstant].indexes.add(i)
-            of exprVariable:
-                inc result[exprVariable].count
-                result[exprVariable].indexes.add(i)
-            of exprFactors:
-                inc result[exprFactors].count
-                result[exprFactors].indexes.add(i)
-            of exprTerms:
-                inc result[exprTerms].count
-                result[exprTerms].indexes.add(i)
-            of exprExponent:
-                inc result[exprExponent].count
-                result[exprExponent].indexes.add(i)
-            of exprFuncCall:
-                inc result[exprFuncCall].count
-                result[exprFuncCall].indexes.add(i)
-]#
-
 proc contains*(symExprs: openArray[SymbolicExpression], kind: ExprKind): bool =
     for i in 0 .. symExprs.high:
         if kind in symExprs[i]: return true
@@ -353,11 +326,7 @@ proc simplifySameBaseExponents(result_factors: var seq[SymbolicExpression]) =
                 exponent = constructTerms(exponents)
             let new_factor = constructExponent(base, exponent)
             new_factors.add new_factor
-    result_factors = new_factors
-
-
-        
-            
+    result_factors = new_factors        
 
 proc constructFactors(factors: seq[SymbolicExpression]): SymbolicExpression =
     # make this work with a seq of SymbolicExpression instead. Then put a wrapper around it that converts varargs to seq and extracts the treeRepr that is then passed to here.
@@ -625,6 +594,8 @@ proc `^`*(a, b: SymbolicExpression): SymbolicExpression =
 proc `/`*(a, b: SymbolicExpression): SymbolicExpression =
     a * constructExponent(b, someNumberToSymExpr(-1))
 
+template `+=`*(a, b: SymbolicExpression) =
+    a = a + b
 
 proc sin*(a: SymbolicExpression): SymbolicExpression =
     if a.kind == exprConstant:

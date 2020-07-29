@@ -98,6 +98,13 @@ suite "Basic arithmetics tests":
     check not equal(x + 1, x - 1)
     check not equal(y*x + x*y, x*y)
 
+  test "+=":
+    var exp1 = x^2
+    exp1 += 2*x
+    check $exp1 == "x^2 + 2*x"
+    exp1 += 1
+    check $exp1 == "1 + x^2 + 2*x"
+
   echo "Derivatives and FuncCall"
   
   test "diff of constant":

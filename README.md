@@ -21,6 +21,22 @@ let expr5 = expr1 - expr2
 let expr6 = expr4 / expr3
 ```
 
+## Derivatives
+SymbolicNim can perform symbolic differentitation:
+```nim
+let x = newVariable("x")
+let y = newVariable("y")
+echo diff(x^2, x) # 2*x
+echo diff(sin(2*y), y) # 2*cos(2*y)
+echo diff(x^2, x, 2) # d^2/dx^2(x^2) = 2
+echo diff(x*y, x, y) # d/dy(d/dx(x*y)) = 1
+```
+As you can see there are two different ways to call `diff`:
+- ONE variable and an int: `diff(x^2, x, 2)`. That is the second derivative with respect to `x`.
+- A varargs of variables: `diff(x*y, x, y)`. The derivatives are performed from left to right so the first variable is associated with the innermost derivative. 
+
+Note: SymbolicNim's simplification algorithms aren't anything to brag about really so expect that some expressions can look quite ugly and long even though there is a "easy" simplification that could make it neater.
+
 ## Constants
 Symbolic constants are represented as Nim's stdlib `Rational[int]` from [rationals](https://nim-lang.org/docs/rationals.html). Ints and floats are automatically converted to it when entered. Hence if you input a float it will be converted to the best matching fraction and the output may look quite ugly. If you want to write a fraction exaactly you can use the `//` proc that will create a Rational:
 ```nim

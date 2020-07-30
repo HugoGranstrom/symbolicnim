@@ -9,7 +9,16 @@ SymbolicNim exposes a interface of variables and expressions to the user. Symbol
 let x = newVariable("x")
 let y = newVariable("y")
 ```
-The name of the variable is used to identify it and is used in printing. If two variables are given the same name, they will be interpreted as equal.
+The name of the variable is used to identify it and is used in printing. If two variables are given the same name, they will be interpreted as equal. If you want to create a lot of variables easily you can do it with the `createVars` macro:
+```nim
+createVars(x, y, coolVar)
+```
+This is transformed to:
+```nim
+let x = newVariable("x")
+let y = newVariable("y")
+let coolVar = newVariable("coolVar")
+```
 Expressions are created when we do arithmetic with variables and constants:
 ```nim
 let expr1 = 2 * x

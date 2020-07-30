@@ -187,5 +187,15 @@ suite "Basic arithmetics tests":
     check equal(ln(exp(expression)), exp(ln(expression)))
     check $ln(exp(expression)) == $expression
 
+  echo "Macros"
+  test "createVars":
+    createVars(k, j, cool)
+    check (typeof(k) is SymbolicVariable)
+    check (k.name == "k")
+    check (typeof(j) is SymbolicVariable)
+    check (j.name == "j")
+    check (typeof(cool) is SymbolicVariable)
+    check (cool.name == "cool")
+
 
 

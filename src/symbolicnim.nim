@@ -1,11 +1,11 @@
 import sets, hashes, strformat, sequtils, rationals, algorithm, tables
-import math
+import math, macros
 export sets, rationals
 type
     SymNumberType* = Rational[int]
 
     SymbolicVariable* = ref object
-        name: string
+        name*: string
     
     FuncCallKind* = enum
         expFunc,
@@ -73,6 +73,20 @@ proc pow*(r: SymNumberType, e: int): SymNumberType =
     else:
         result.num = r.num ^ e
         result.den = r.den ^ e
+
+#### Macros
+macro createVars*(varNames: varargs[untyped]): untyped =
+    ## Transforms createVars(x, y) to:
+    ## let x = newVariable("x")
+    ## let y = newVariable("y")
+    result = newStmtList()
+    for varName in varNames:
+        if varName.kind == nnkIdent:
+            let nameStr = varName.strVal
+            result.add quote do:
+                let `varName` = newVariable(`nameStr`)
+        else:
+            raise newException(ValueError, "All arguments must be valid identifiers")
 
 #### SymbolicVariable
 const pi_str = "π"

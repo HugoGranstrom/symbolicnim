@@ -4,7 +4,6 @@ type
   SymNodeKind* = enum
     symSymbol # "variables"
     symNumber # literal
-    symArray # basis for vectors and matrices and whatever you want.
     symAdd
     symMul
     symPow
@@ -18,8 +17,6 @@ type
       name*: string
     of symNumber:
       lit*: Rational[int]
-    of symArray:
-      len*: int
     of symAdd:
       terms: Table[SymNode, Rational[int]]
       constant: Rational[int]
@@ -91,7 +88,6 @@ proc hash*(symNode: SymNode): Hash =
   case symNode.kind:
     of symSymbol: result = result !& hash(symNode.name)
     of symNumber: result = result !& hash(symNode.lit)
-    of symArray: result = result !& hash(symNode.len)
     of symAdd: result = result !& hash($symNode.terms) !& hash(symNode.constant)
     of symMul: result = result !& hash($symNode.products) !& hash(symNode.coeff)
     else: discard
@@ -422,25 +418,75 @@ proc sumNimNodes*(s: seq[NimNode]): NimNode =
     let sI = s[i]
     result = quote do:
       `result` + `sI`
-  
+
+proc mulNimNodes*(s: seq[NimNode]): NimNode =
+  doAssert s.len > 0, "mulNimNodes must get a seq of length 1 or more."
+  if s.len == 1:
+    return s[0]
+  result = s[0]
+  for i in 1 .. s.high:
+    let sI = s[i]
+    result = quote do:
+      `result` * `sI`
+
+proc rationalToNimNode*(r: Rational[int]): NimNode =
+  # Rewrites rational to ordinary division between two ints
+  let num = newLit r.num
+  if r.den == 1: # x/1 = x
+    return num
+  let den = newLit r.den
+  result = quote do:
+    `num` / `den`
 
 proc compileSymNode*(symNode: SymNode): NimNode {.compileTime.} =
   case symNode.kind
   of symSymbol:
     result = ident(symNode.name)
   of symNumber:
-    result = newLit(symNode.lit)
+    result = rationalToNimNode(symNode.lit)
+  of symAdd:
+    var nimNodes = newSeq[NimNode]()
+    if symNode.constant != 0 // 1:
+      nimNodes.add rationalToNimNode(symNode.constant)
+    for term, coeff in pairs(symNode.terms):
+      let termNimNode = compileSymNode(term)
+      if coeff != 1 // 1:
+        let coeffNimNode = rationalToNimNode(coeff)
+        nimNodes.add quote do:
+          `coeffNimNode` * `termNimNode`
+      else:
+        nimNodes.add termNimNode
+    result = sumNimNodes(nimNodes)
+  of symMul:
+    var nimNodes = newSeq[NimNode]() # stores the things that are multiplied
+    if symNode.coeff != 1 // 1:
+      nimNodes.add rationalToNimNode(symNode.coeff)
+    for base, exponent in pairs(symNode.products):
+      let baseNimNode = compileSymNode(base)
+      if exponent.kind == symNumber and exponent.lit != 1 // 1: 
+        let exponentNimNode = compileSymNode(exponent)
+        nimNodes.add quote do:
+          pow(`baseNimNode`, `exponentNimNOde`)
+      else:
+        nimNodes.add baseNimNode
+    result = mulNimNodes(nimNodes)
+  of symPow:
+    let base = newLit compileSymNode(symNode.children[0])
+    let exponent = newLit compileSymNode(symNode.children[1])
+    result = quote do:
+      `base` ^ `exponent`
   else:
     discard
 
 macro compile*(symNode: static SymNode): untyped =
-  compileSymNode(symNode)
+  result = compileSymNode(symNode)
+  echo result.repr
 
 macro generate*(symObj: typed, signatures: untyped): untyped =
   result = newStmtList()
   signatures.expectKind(nnkStmtList)
-  echo signatures[0].kind
-  echo signatures.treeRepr
+  #echo signatures[0].kind
+  #echo signatures.treeRepr
   for sig in signatures:
     sig.expectKind({nnkProcDef, nnkFuncDef})
     let newSig = copyNimTree(sig)
@@ -451,7 +497,7 @@ macro generate*(symObj: typed, signatures: untyped): untyped =
 
 ### Testing
 
-
+#[
 "Hej".generate:
   proc f*(x: float): auto
   proc g*(x: float): auto
@@ -459,11 +505,21 @@ macro generate*(symObj: typed, signatures: untyped): untyped =
 
 newSymbol("x").generate:
   proc q(x: float): auto
-
+]#
 let s{.compiletime.} = newSymNumber(2 // 3)
 s.generate:
   proc r(): auto
 
+converter intToFloat(d: int): float = d.toFloat
+proc pow(d, e: int): int = d ^ e
+
+let x {.compiletime.} = newSymbol("x")
+let y {.compiletime.} = newSymbol("y")
+let expr1 {.compiletime.} = x*y^newSymNumber(2 // 1)
+expr1.generate:
+  proc f1(x, y: int): int
+echo f1(2, 3)
+#[
 when isMainModule:
   converter intToSymNumber(d: int): SymNode =
     newSymNumber(d.toRational)
@@ -501,3 +557,4 @@ when isMainModule:
   echo (x*y*2) ^ newSymNumber(3 // 2)
   echo (2 ^ x ^ y) ^ 5
   echo (x^y)*5
+]#

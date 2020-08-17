@@ -69,6 +69,7 @@ proc compileSymNode*(symNode: SymNode): NimNode {.compileTime.} =
         nimNodes.add baseNimNode
     result = mulNimNodes(nimNodes)
   of symPow:
+    # check if exponent is positive int, then use ^, otherwise pow?
     let base = newLit compileSymNode(symNode.children[0])
     let exponent = newLit compileSymNode(symNode.children[1])
     result = quote do:

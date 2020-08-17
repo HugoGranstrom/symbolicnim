@@ -324,7 +324,17 @@ proc diff_internal*(symNode: SymNode, dVar: SymNode): SymNode =
     else:
       result = diffProcsRT[symNode.funcName](symNode, dVar)
 
+proc diff*(symNode: SymNode, dVar: SymNode, derivOrder: Natural = 1): SymNode =
+  if derivOrder == 0: return symNode
+  result = diff_internal(symNode, dVar)
+  for i in 2 .. derivOrder:
+    result = diff_internal(result, dVar)
 
+proc diff*(symNode: SymNode, dVars: seq[SymNode]): SymNode =
+  if dVars.len == 0: return symNode
+  result = diff_internal(symNode, dVars[0])
+  for i in 1 .. dVars.high:
+    result = diff_internal(result, dVars[i])
 
 ### Builtin SymFuncs
 

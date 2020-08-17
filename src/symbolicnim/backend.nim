@@ -4,8 +4,8 @@ import
   ./backend/deepEmbedding,
   ./backend/compileAST,
   ./backend/extensions
-import math
-export math
+import math, rationals
+export math, rationals
 export
   ast_types,
   utils,

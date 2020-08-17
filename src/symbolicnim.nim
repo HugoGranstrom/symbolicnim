@@ -12,7 +12,9 @@ type
         lnFunc,
         sinFunc,
         cosFunc,
-        tanFunc
+        tanFunc,
+        #sgnFunc
+        #absFunc
 
     ExprKind* = enum
         exprConstant,
@@ -65,6 +67,12 @@ proc isInteger(r: SymNumberType): bool =
 proc isHalfMultiple(r: SymNumberType): bool =
     if r.den == 2 or r.den == 1: return true
     return false
+
+proc sgn*(r: SymNumberType): SymNumberType =
+    let numSgn = sgn(r.num)
+    let denSgn = sgn(r.den)
+    let totalSgn = numSgn * denSgn
+    result = totalSgn.toRational
 
 proc pow*(r: SymNumberType, e: int): SymNumberType =
     if e < 0:
@@ -666,8 +674,16 @@ proc exp*(a: SymbolicExpression): SymbolicExpression =
     if a.kind == exprFuncCall and a.funcKind == lnFunc:
         return a.children[0]
     result = initExprFuncCall(expFunc)
-    result.children = @[a]
     result.deps = a.deps
+    result.children = @[a]
+
+#[proc sgn*(a: SymbolicExpression): SymbolicExpression =
+    if a.kind == exprConstant:
+        return initExprConstant(sgn(a.value))
+    result = initExprFuncCall(sgnFunc)
+    result.deps = a.deps
+    result.children = @[a]
+]#
 
 proc diffFuncCall(dVar: SymbolicVariable, tree: SymbolicExpression): SymbolicExpression =
     let child = tree.children[0]
@@ -687,6 +703,8 @@ proc diffFuncCall(dVar: SymbolicVariable, tree: SymbolicExpression): SymbolicExp
     of lnFunc:
         result = constructFactors(@[diff_internal(dVar, child), constructExponent(child, someNumberToSymExpr(-1))])
         return
+    #of absFunc:
+    #    result = sgn(child) * diff_internal(dVar, child)
 
 proc diff_internal(dVar: SymbolicVariable, tree: SymbolicExpression): SymbolicExpression =
     if not (dVar in tree.deps):
@@ -738,8 +756,15 @@ proc diff*(symExpr: SymbolicExpression, dVars: varargs[SymbolicVariable]): Symbo
 when isMainModule:
     let x = newVariable("x")
     let y = newVariable("y")
-    let expr1 = x*y + x/y
-    echo diff(expr1, x)
-    echo diff(expr1, y)
-    echo diff(expr1, x, y)
-    echo diff(expr1, y, x)
+
+    let expr1 = 2*x + y^3
+    let expr2 = -2*x + 3*y^3
+    echo expr1 + expr2 # 4*y^3
+
+    echo diff(expr1, x) # 2
+    echo diff(expr1, y) # 3*y^2
+    echo diff(expr1, y, 2) # d^2/dy^2(expr1) = 6*y
+    echo diff(expr1, x, y) # d/dy(d/dx(expr1)) = 0
+
+    let expr3 = sin(x^2)
+    echo diff(expr3, x) #

@@ -1,7 +1,7 @@
 # SymbolicNim
 A symbolic library written purely in Nim
 
-## Requires Nim devel to run!
+## Requires Nim 1.2.6 to run!
 
 # Basic usage
 SymbolicNim exposes a interface of variables and expressions to the user. Symbolic variables are created with the `newVariable` proc:

@@ -45,5 +45,11 @@ proc exp*(a: SymExpr): SymExpr =
 proc ln*(a: SymExpr): SymExpr =
   SymExpr(ast: ln(a.ast))
 
-template generate*(symExpr: SymExpr, signatures: untyped): untyped =
-  generate(symExpr.ast, signatures)
+proc compileSymExpr*(symExpr: SymExpr): NimNode =
+  compileSymNode(symExpr.ast)
+
+macro compile*(symExpr: static SymExpr): untyped =
+  compileSymExpr(symExpr)
+
+#template generate*(symExpr: SymExpr, signatures: untyped): untyped =
+#  generate(symExpr.ast, signatures)

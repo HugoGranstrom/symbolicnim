@@ -6,11 +6,11 @@ converter rationalToSymNumber(d: Rational[int]): SymNode = newSymNumber(d)
 
 suite "Basic arithmetics tests":
   setup:
-    let x = newSymbolNode("x")
-    let y = newSymbolNode("y")
-    let z = newSymbolNode("z")
-    let a = newSymbolNode("a")
-    let b = newSymbolNode("b")
+    let x = newSymbol("x")
+    let y = newSymbol("y")
+    let z = newSymbol("z")
+    let a = newSymbol("a")
+    let b = newSymbol("b")
 
   test "0*x = 0":
     let result1 = 0 * x
@@ -22,18 +22,18 @@ suite "Basic arithmetics tests":
     let result1 = exp(2*x)
     echo result1
     echo exp(x - x)
-    echo diff_internal(result1 + x, x)
+    echo diff(result1 + x, x)
 
   test "ln":
     let result1 = ln(2*x)
     echo result1
     echo ln(1 + x - x)
-    echo diff_internal(result1, x)
+    echo diff(result1, x)
 
   test "diff power":
-    echo "d/dx(x^2) = ", diff_internal(x^2, x)
-    echo "d/dx(y^x) = ", diff_internal(y^x, x)
-    echo "d/dx(x^x) = ", diff_internal(x^x, x)
+    echo "d/dx(x^2) = ", diff(x^2, x)
+    echo "d/dx(y^x) = ", diff(y^x, x)
+    echo "d/dx(x^x) = ", diff(x^x, x)
 
   test "SymExpr":
     let k = newSymbol("k")
@@ -41,9 +41,15 @@ suite "Basic arithmetics tests":
     echo k + p
     echo diff(exp(2*k + p), k, p, k, p)
 
+  test "SymMatrix":
+    let A = @[x, y, z].toRow
+    let B = @[x, y, z].toCol
+    echo A * B
+
 echo "Compiletime:"
-let x {.compileTime.} = newSymbolNode("x")
-let y {.compileTime.} = newSymbolNode("y")
+let x {.compileTime.} = newSymbol("x")
+let y {.compileTime.} = newSymbol("y")
+let z {.compileTime.} = newSymbol("z")
 (exp(x) + ln(y)).generate:
   proc f(x, y: float): float
 
@@ -54,4 +60,10 @@ let p {.compileTime.} = newSymbol("p")
 (k + p).generate:
   proc kj(k, p: float): float
 echo "kj(2.0, 3.0) = ", kj(2.0, 3.0)
+
+let A {.compileTime.} = @[x, y, z].toRow
+let B {.compileTime.} = @[x, y, z].toCol
+(A*B).generate:
+      proc matrixMult(x, y, z: float): Tensor[float]
+echo matrixMult(1.0, 2.0, 3.0)
 

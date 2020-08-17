@@ -11,6 +11,15 @@ var compileProcsCT* {.compileTime.} = initTable[string, proc(node: SymNode): Nim
 var diffProcsCT* {.compileTime.} = initTable[string, proc(node, dVar: SymNode): SymNode]()
 var diffProcsRT* = initTable[string, proc(node, dVar: SymNode): SymNode]()
 
+
+proc isValidFunc*(name: string): bool =
+  when nimvm:
+    result = name in compileProcsCT and name in diffProcsCT
+  else:
+    result = name in diffProcsRT
+
+
+
 macro simplifyPass*(simpProc: untyped): untyped =
   simpProc.expectKind(nnkProcDef)
   let procName = name(simpProc)
@@ -21,7 +30,7 @@ macro simplifyPass*(simpProc: untyped): untyped =
 
 template registerSymFunc*(name: string, diffProc: proc(node, dVar: SymNode): SymNode, compileProc: proc(node: SymNode): NimNode): untyped =
   static:
-    assert not(name in diffProcsCT), "Func name '" & name & "' is already used!"
+    assert not isValidFunc(name), "Func name '" & name & "' is already used!"
     compileProcsCT[name] = compileProc
     diffProcsCT[name] = diffProc
   diffProcsRT[name] = diffProc

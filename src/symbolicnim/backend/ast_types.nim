@@ -1,4 +1,4 @@
-import tables, rationals, hashes, math
+import tables, rationals, hashes, math, strutils
 import ./utils
 type
   SymNodeKind* = enum
@@ -83,13 +83,22 @@ proc `==`*(a, b: SymNode): bool =
   hash(a) == hash(b) # This works assuming we have a good hash algorithm
   #a[] == b[]
 
+proc copySymNode*(symNode: SymNode): SymNode =
+  # shallow copy (just underlying SymNode)
+  discard
+
+proc copySymTree*(symNode: SymNode): SymNode =
+  # deep copy (all decendent nodes)
+  discard
+
 proc newSymNode*(kind: SymNodeKind): SymNode =
   result = SymNode(kind: kind)
   if kind == symMul: result.coeff = 1 // 1
   elif kind == symAdd: result.constant = 0 // 1
   elif kind == symNumber: result.lit = 0 // 1 # by default 0 // 0 which isn't good
 
-proc newSymbol*(name: string): SymNode =
+proc newSymbolNode*(name: string): SymNode {.raises:[ValueError].} =
+  if " " in name: raise newException(ValueError, "Symbol name '" & name & "' contains a space!")
   result = newSymNode(symSymbol)
   result.name = name
 

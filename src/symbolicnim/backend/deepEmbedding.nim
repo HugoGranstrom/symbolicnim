@@ -1,9 +1,15 @@
-import rationals, math, tables, sequtils
-import ./ast_types, ./utils
+import rationals, math, tables, sequtils, macros
+import
+  ./ast_types,
+  ./compileAST,
+  ./utils,
+  ./extensions
 
 ### Forward declarations
 proc `*`*(a, b: SymNode): SymNode
 proc `+`*(a, b: SymNode): SymNode
+proc exp*(symNode: SymNode): SymNode
+proc ln*(symNode: SymNode): SymNode
 
 
 proc mulToKey*(mul: SymNode): SymNode =
@@ -308,6 +314,65 @@ proc diff_internal*(symNode: SymNode, dVar: SymNode): SymNode =
           temp = temp * pairs[j][0] ^ pairs[j][1]
       result = result + temp
   of symPow:
-    discard
+    let f = symNode.children[0]
+    let g = symNode.children[1]
+    result = g * f ^ (g - newSymNumber(1//1)) * diff_internal(f, dVar) + f ^ g * ln(f) * diff_internal(g, dVar)
   of symFunc:
-    discard # something like symFuncDiffProcs[symNode.funcName](symNode)
+    assert symNode.funcName.isValidFunc
+    when nimvm:
+      result = diffProcsCT[symNode.funcName](symNode, dVar)
+    else:
+      result = diffProcsRT[symNode.funcName](symNode, dVar)
+
+
+
+### Builtin SymFuncs
+
+proc exp*(symNode: SymNode): SymNode =
+  if symNode.kind == symFunc and symNode.funcName == "ln":
+    return symNode.children[0]
+  if symNode.kind == symNumber and symNode.lit == 0 // 1:
+    return newSymNumber(1 // 1)
+  result = newSymNode(symFunc)
+  result.funcName = "exp"
+  result.nargs = 1
+  result.children.add symNode
+
+proc diffExp(symNode: SymNode, dVar: SymNode): SymNode =
+  assert symNode.kind == symFunc and symNode.funcName == "exp"
+  # calculate d/dx(exp(f(x))) = d/dx(f(x)) * exp(f(x))
+  let child = symNode.children[0]
+  result = diff_internal(child, dVar) * symNode
+
+proc compileExp(symNode: SymNode): NimNode =
+  assert symNode.kind == symFunc and symNode.funcName == "exp"
+  # generate the code `exp(compile(symNode.children[0]))`
+  let childNimNode = compileSymNode(symNode.children[0])
+  result = quote do:
+    exp(`childNimNode`)
+
+registerSymFunc("exp", diffExp, compileExp)
+
+proc ln*(symNode: SymNode): SymNode =
+  if symNode.kind == symFunc and symNode.funcName == "exp":
+    return symNode.children[0]
+  if symNode.kind == symNumber and symNode.lit == 1 // 1:
+    return newSymNumber(0 // 1)
+  # add case for ln(0) = -inf
+  result = newSymNode(symFunc)
+  result.funcName = "ln"
+  result.nargs = 1
+  result.children.add symNode
+
+proc diffLn(symNode: SymNode, dVar: SymNode): SymNode =
+  assert symNode.kind == symFunc and symNode.funcName == "ln"
+  let child = symNode.children[0]
+  result = diff_internal(child, dVar) / child
+
+proc compileLn(symNode: SymNode): NimNode =
+  assert symNode.kind == symFunc and symNode.funcName == "ln"
+  let childNimNode = compileSymNode(symNode.children[0])
+  result = quote do:
+    ln(`childNimNode`)
+
+registerSymFunc("ln", diffLn, compileLn)

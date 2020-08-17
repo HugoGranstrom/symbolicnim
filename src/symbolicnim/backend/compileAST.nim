@@ -1,5 +1,7 @@
 import rationals, macros, tables
-import ./ast_types
+import
+  ./ast_types,
+  ./extensions
 
 macro compile*(s: static string): untyped =
   result = quote do:
@@ -70,9 +72,12 @@ proc compileSymNode*(symNode: SymNode): NimNode {.compileTime.} =
     let base = newLit compileSymNode(symNode.children[0])
     let exponent = newLit compileSymNode(symNode.children[1])
     result = quote do:
-      `base` ^ `exponent`
+      #`base` ^ `exponent`
+      pow(`base`, `exponent`)
   of symFunc:
-    discard # something like symFuncCompileProcs[symNode.funcName](symNode)
+    # something like symFuncCompileProcs[symNode.funcName](symNode)
+    assert isValidFunc(symNode.funcName)
+    result = compileProcsCT[symNode.funcName](symNode)
 
 macro compile*(symNode: static SymNode): untyped =
   result = compileSymNode(symNode)

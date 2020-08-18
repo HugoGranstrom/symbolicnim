@@ -12,6 +12,9 @@ proc newSymbol*(name: string): SymExpr =
 proc `$`*(symExpr: SymExpr): string =
   $symExpr.ast
 
+proc equal*(a, b: SymExpr): bool =
+  a.ast == b.ast
+
 proc `+`*(a, b: SymExpr): SymExpr =
   SymExpr(ast: a.ast + b.ast)
 

@@ -236,8 +236,9 @@ proc `+`*(a, b: SymNode): SymNode =
         if newConst == 0 // 1: # -1() + 1() = 0() = 0
           return newSymNumber(0 // 1)
         else: # 2x + 3x = 5x (mul)
-          result = aKey
-          result.coeff = newConst # we can change this because aKey isn't used anymore.
+          #result = aKey
+          #result.coeff = newConst # we can change this because aKey isn't used anymore.
+          result = newSymNumber(newConst) * aKey
       else: # just create a Add with respective muls. Coefficent should be as high up as possible, ie in the Add
         result.terms[aKey] = a.coeff
         result.terms[bKey] = b.coeff

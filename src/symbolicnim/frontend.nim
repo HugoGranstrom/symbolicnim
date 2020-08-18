@@ -1,3 +1,6 @@
+import math, rationals
+export math, rationals
+
 import ./backend/compileAST
 export compileAST
 import ./frontend/symbolicExpression

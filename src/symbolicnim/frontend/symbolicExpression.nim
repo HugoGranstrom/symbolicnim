@@ -1,3 +1,4 @@
+import macros
 import ../backend
 
 type SymExpr* = ref object
@@ -48,6 +49,15 @@ proc exp*(a: SymExpr): SymExpr =
 proc ln*(a: SymExpr): SymExpr =
   SymExpr(ast: ln(a.ast))
 
+proc sin*(a: SymExpr): SymExpr =
+  SymExpr(ast: sin(a.ast))
+
+proc cos*(a: SymExpr): SymExpr =
+  SymExpr(ast: cos(a.ast))
+
+proc tan*(a: SymExpr): SymExpr =
+  SymExpr(ast: tan(a.ast))
+
 proc compileSymExpr*(symExpr: SymExpr): NimNode =
   compileSymNode(symExpr.ast)
 
@@ -56,3 +66,19 @@ macro compile*(symExpr: static SymExpr): untyped =
 
 #template generate*(symExpr: SymExpr, signatures: untyped): untyped =
 #  generate(symExpr.ast, signatures)
+
+macro createSymbols*(varNames: varargs[untyped]): untyped =
+    ## Transforms createVars(x, y) to:
+    ## let x = newVariable("x")
+    ## let y = newVariable("y")
+    result = newStmtList()
+    for varName in varNames:
+        if varName.kind == nnkIdent:
+            let nameStr = varName.strVal
+            result.add quote do:
+                let `varName` = newSymbol(`nameStr`)
+        else:
+            raise newException(ValueError, "All arguments must be valid identifiers")
+
+template sym_pi*(): SymExpr =
+  newSymbol("π")

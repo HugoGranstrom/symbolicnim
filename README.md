@@ -6,18 +6,18 @@ A symbolic library written purely in Nim
 # Basic usage
 SymbolicNim exposes a interface of variables and expressions to the user. Symbolic variables are created with the `newVariable` proc:
 ```nim
-let x = newVariable("x")
-let y = newVariable("y")
+let x = newSymbol("x")
+let y = newSymbol("y")
 ```
-The name of the variable is used to identify it and is used in printing. If two variables are given the same name, they will be interpreted as equal. If you want to create a lot of variables easily you can do it with the `createVars` macro:
+The name of the variable is used to identify it and is used in printing. If two variables are given the same name, they will be interpreted as equal. If you want to create a lot of variables easily you can do it with the `createSymbols` macro:
 ```nim
-createVars(x, y, coolVar)
+createSymbols(x, y, coolVar)
 ```
 This is transformed to:
 ```nim
-let x = newVariable("x")
-let y = newVariable("y")
-let coolVar = newVariable("coolVar")
+let x = newSymbol("x")
+let y = newSymbol("y")
+let coolVar = newSymbol("coolVar")
 ```
 Expressions are created when we do arithmetic with variables and constants:
 ```nim
@@ -33,8 +33,8 @@ let expr6 = expr4 / expr3
 ## Derivatives
 SymbolicNim can perform symbolic differentitation:
 ```nim
-let x = newVariable("x")
-let y = newVariable("y")
+let x = newSymbol("x")
+let y = newSymbol("y")
 echo diff(x^2, x) # 2*x
 echo diff(sin(2*y), y) # 2*cos(2*y)
 echo diff(x^2, x, 2) # d^2/dx^2(x^2) = 2
@@ -47,7 +47,7 @@ As you can see there are two different ways to call `diff`:
 Note: SymbolicNim's simplification algorithms aren't anything to brag about really so expect that some expressions can look quite ugly and long even though there is a "easy" simplification that could make it neater.
 
 ## Constants
-Symbolic constants are represented as Nim's stdlib `Rational[int]` from [rationals](https://nim-lang.org/docs/rationals.html). Ints and floats are automatically converted to it when entered. Hence if you input a float it will be converted to the best matching fraction and the output may look quite ugly. If you want to write a fraction exaactly you can use the `//` proc that will create a Rational:
+Symbolic constants are represented as Nim's stdlib `Rational[int]` from [rationals](https://nim-lang.org/docs/rationals.html). Ints and floats are automatically converted to it when entered. Hence if you input a float it will be converted to the best matching fraction and the output may look quite ugly. If you want to write a fraction exactly you can use the `//` proc that will create a Rational:
 ```nim
 let frac = 1 // 3 # exactly 1 / 3 and not 0.3333333333332 or something.
 ```

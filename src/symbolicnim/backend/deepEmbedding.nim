@@ -337,6 +337,11 @@ proc diff*(symNode: SymNode, dVars: seq[SymNode]): SymNode =
   for i in 1 .. dVars.high:
     result = diff_internal(result, dVars[i])
 
+### Builtin constants
+
+template sym_pi*(): SymNode =
+  newSymbolNode("π")
+
 ### Builtin SymFuncs
 
 proc exp*(symNode: SymNode): SymNode =
@@ -387,3 +392,70 @@ proc compileLn(symNode: SymNode): NimNode =
     ln(`childNimNode`)
 
 registerSymFunc("ln", diffLn, compileLn)
+
+proc sin*(symNode: SymNode): SymNode =
+  if symNode.kind == symNumber and symNode.lit == 0 // 1:
+    return newSymNumber(0 // 1)
+  elif symNode.kind == symSymbol and symNode == sym_pi:
+    return newSymNumber(0 // 1)
+  result = newSymNode(symFunc)
+  result.funcName = "sin"
+  result.nargs = 1
+  result.children.add symNode
+
+proc cos*(symNode: SymNode): SymNode =
+  if symNode.kind == symNumber and symNode.lit == 0 // 1:
+    return newSymNumber(1 // 1)
+  elif symNode.kind == symSymbol and symNode == sym_pi:
+    return newSymNumber(-1 // 1)
+  result = newSymNode(symFunc)
+  result.funcName = "cos"
+  result.nargs = 1
+  result.children.add symNode
+
+proc tan*(symNode: SymNode): SymNode =
+  if symNode.kind == symNumber and symNode.lit == 0 // 1:
+    return newSymNumber(0 // 1)
+  elif symNode.kind == symSymbol and symNode == sym_pi:
+    return newSymNumber(0 // 1)
+  result = newSymNode(symFunc)
+  result.funcName = "tan"
+  result.nargs = 1
+  result.children.add symNode
+
+proc diffSin(symNode: SymNode, dVar: SymNode): SymNode =
+  assert symNode.kind == symFunc and symNode.funcName == "sin"
+  let child = symNode.children[0]
+  result = diff_internal(child, dVar) * cos(child)
+
+proc compileSin(symNode: SymNode): NimNode =
+  assert symNode.kind == symFunc and symNode.funcName == "sin"
+  let childNimNode = compileSymNode(symNode.children[0])
+  result = quote do:
+    sin(`childNimNode`)
+
+proc diffCos(symNode: SymNode, dVar: SymNode): SymNode =
+  assert symNode.kind == symFunc and symNode.funcName == "cos"
+  let child = symNode.children[0]
+  result = diff_internal(child, dVar) * -sin(child)
+
+proc compileCos(symNode: SymNode): NimNode =
+  assert symNode.kind == symFunc and symNode.funcName == "cos"
+  let childNimNode = compileSymNode(symNode.children[0])
+  result = quote do:
+    cos(`childNimNode`)
+
+proc diffTan(symNode: SymNode, dVar: SymNode): SymNode =
+  assert symNode.kind == symFunc and symNode.funcName == "tan"
+  let child = symNode.children[0]
+  result = diff_internal(child, dVar) * cos(child) ^ newSymNumber(-2 // 1)
+
+proc compileTan(symNode: SymNode): NimNode =
+  assert symNode.kind == symFunc and symNode.funcName == "tan"
+  let childNimNode = compileSymNode(symNode.children[0])
+  result = quote do:
+    tan(`childNimNode`)
+
+registerSymFunc("sin", diffSin, compileSin)
+registerSymFunc("cos", diffCos, compileCos)
+registerSymFunc("tan", diffTan, compileTan)

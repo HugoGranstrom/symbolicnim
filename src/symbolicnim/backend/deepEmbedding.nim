@@ -8,6 +8,7 @@ import
 ### Forward declarations
 proc `*`*(a, b: SymNode): SymNode
 proc `+`*(a, b: SymNode): SymNode
+proc `^`*(a, b: SymNode): SymNode
 proc exp*(symNode: SymNode): SymNode
 proc ln*(symNode: SymNode): SymNode
 
@@ -15,7 +16,8 @@ proc ln*(symNode: SymNode): SymNode
 proc mulToKey*(mul: SymNode): SymNode =
   assert mul.kind == symMul
   if mul.products.len == 1: # 2*x, return x as symbol not {x: 1}
-    result = toSeq(keys(mul.products))[0]
+    let (base, exponent) = toSeq(pairs(mul.products))[0]
+    result = base ^ exponent
   else:
     result = newSymNode(symMul)
     result.products = mul.products

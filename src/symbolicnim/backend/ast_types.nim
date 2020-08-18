@@ -9,7 +9,7 @@ type
     symPow
     symFunc
 
-  SymNode* = ref object
+  SymNode* = ref object # {.acyclic.}?
     children*: seq[SymNode]
     hashCache*: Hash
     case kind*: SymNodeKind

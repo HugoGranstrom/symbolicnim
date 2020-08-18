@@ -43,7 +43,7 @@ suite "Basic arithmetics tests":
 
   test "SymMatrix":
     let A = @[x, y, z].toRow
-    let B = @[x, y, z].toCol
+    let B = @[x, y*x*y + z*2-5*x + x^4*z, z].toCol
     echo A * B
 
 echo "Compiletime:"

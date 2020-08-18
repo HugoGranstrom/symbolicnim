@@ -35,7 +35,6 @@ proc `$`*(symNode: SymNode): string =
   of symNumber: return rationalToString(symNode.lit)
   #of symAdd, symMul: $symNode.terms & " + " & $symNode.constant
   of symAdd:
-    result = "("
     if symNode.constant != 0 // 1:
       result.add rationalToString(symNode.constant) & " + "
     for term, coeff in pairs(symNode.terms):
@@ -44,22 +43,44 @@ proc `$`*(symNode: SymNode): string =
       else:
         result.add $term & " + "
     result = result[0 .. ^4]
-    result.add ")"
   of symMul:
-    result = "("
     if symNode.coeff != 1 // 1:
       result.add rationalToString(symNode.coeff) & "*"
     for base, exponent in pairs(symNode.products):
-      if exponent.kind == symNumber and exponent.lit == 1 // 1:
-        result.add $base & "*"
+      var baseStr: string
+      if base.kind in {symAdd, symMul, symPow}:
+        baseStr = "(" & $base & ")"
       else:
-        result.add $base & "^(" & $exponent & ")*"
+        baseStr = $base
+      if exponent.kind == symNumber and exponent.lit == 1 // 1:
+        result.add baseStr & "*"
+      else:
+        var exponentStr: string
+        if exponent.kind in {symAdd, symMul, symPow}:
+          exponentStr = "(" & $exponent & ")"
+        else:
+          exponentStr = $exponent
+        result.add baseStr & "^" & exponentStr & "*"
     result = result[0 .. ^2]
-    result.add ")"
   of symPow:
-    result = "(" & $symNode.children[0] & "^" & $symNode.children[1] & ")"
+    let base = symNode.children[0]
+    let exponent = symNode.children[1]
+    var baseStr, exponentStr: string
+    if base.kind in {symAdd, symMul, symPow}:
+      baseStr = "(" & $base & ")"
+    else:
+      baseStr = $base
+    if exponent.kind in {symAdd, symMul, symPow}:
+      exponentStr = "(" & $exponent & ")"
+    else:
+      exponentStr = $exponent
+    result = baseStr & "^" & exponentStr
   of symFunc:
-    result = symNode.funcName & "(" & $symNode.children & ")"
+    var argStr: string
+    for child in symNode.children:
+      argstr.add $child & ", "
+    argStr = argStr[0 .. ^3]
+    result = symNode.funcName & "(" & argStr & ")"
 
 proc hash*(symNode: SymNode): Hash =
   # Check if hash is cached

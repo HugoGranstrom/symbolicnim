@@ -1,16 +1,12 @@
 import macros
 import ../backend
 import ./symbolicExpression
-import arraymancer
+import arraymancer, terminaltables
 export arraymancer
 
 type SymMatrix* = ref object
   data*: seq[SymExpr]
   rows*, cols*: Natural
-
-proc `$`*(matrix: SymMatrix): string =
-  # use nim-terminaltables?
-  "SymMatrix(" & $matrix.rows & "x" & $matrix.cols & "):\n" & $matrix.data
 
 proc newSymMatrix*(rows, cols: Natural): SymMatrix =
   assert rows != 0 and cols != 0, "rows and cols must be greater than 0"
@@ -27,6 +23,22 @@ proc `[]`*(matrix: SymMatrix, i, j: Natural): SymExpr =
 proc `[]=`*(matrix: var SymMatrix, i, j: Natural, input: SymExpr) =
   when defined(debug): assert matrix.rows * matrix.cols == matrix.data.len, "The dimensions of matrix data and cols*rows doesn't add up! If you haven't done anything spooky with them please open an issue on Github with your code example. :D"
   matrix.data[i*matrix.cols + j] = input
+
+proc `$`*(matrix: SymMatrix): string =
+  # use nim-terminaltables?
+  #"SymMatrix(" & $matrix.rows & "x" & $matrix.cols & "):\n" & $matrix.data
+  result = "SymMatrix(" & $matrix.rows & "x" & $matrix.cols & "):\n"
+  let table = newUnicodeTable()
+  var headerStrings: seq[string]
+  for col in 0 ..< matrix.cols:
+    headerStrings.add $matrix[0, col]
+  table.setHeaders(headerStrings)
+  for row in 1 ..< matrix.rows:
+    var rowStrings: seq[string]
+    for col in 0 ..< matrix.cols:
+      rowStrings.add $matrix[row, col]
+    table.addRow(rowStrings)
+  result.add table.render()
 
 proc toSymMatrix*(s: seq[seq[SymExpr]], rowMajor = true): SymMatrix =
   assert s.len > 0 and s[0].len > 0, "Seqs can't be empty to create a SymMatrix"

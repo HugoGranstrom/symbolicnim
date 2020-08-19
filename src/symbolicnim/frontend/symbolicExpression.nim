@@ -1,7 +1,7 @@
 import macros
 import ../backend
 
-type SymExpr* = ref object
+type SymExpr* = object
   ast*: SymNode
 
 converter intToSymExpr*(d: int): SymExpr = SymExpr(ast: newSymNumber(d.toRational))

@@ -1,4 +1,4 @@
-import tables, rationals, hashes, math, strutils
+import tables, rationals, hashes, math, strutils, sequtils
 import ./utils
 type
   SymNodeKind* = enum
@@ -82,7 +82,32 @@ proc `$`*(symNode: SymNode): string =
     argStr = argStr[0 .. ^3]
     result = symNode.funcName & "(" & argStr & ")"
 
+# We need a new hash function that reuses hashes!!!
+# because symAdd and symMUl uses `$` it doesn't reuse any of the children's hashes!
+
 proc hash*(symNode: SymNode): Hash =
+  # Check if hash is cached
+  if symNode.hashCache != 0:
+    return symNode.hashCache
+  # Otherwise calculate and cache it
+  result = result !& hash(symNode.children)
+  result = result !& hash(symNode.kind)
+  case symNode.kind:
+    of symSymbol: result = result !& hash(symNode.name)
+    of symNumber: result = result !& hash(symNode.lit)
+    of symAdd:
+      # loop over pairs and add hash(coeff) !& hash(term)
+      #result = result !& hash($symNode.terms) !& hash(symNode.constant)
+      result = result !& hash(toSeq(pairs(symNode.terms))) !& hash(symNode.constant)
+    of symMul:
+      #result = result !& hash($symNode.products) !& hash(symNode.coeff)
+      result = result !& hash(toSeq(pairs(symNode.products))) !& hash(symNode.coeff)
+    of symFunc: result = result !& hash(symNode.funcName) !& hash(symNode.nargs)
+    of symPow: discard
+  result = !$result
+  symNode.hashCache = result
+
+proc hashOld*(symNode: SymNode): Hash =
   # Check if hash is cached
   if symNode.hashCache != 0:
     return symNode.hashCache

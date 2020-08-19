@@ -45,7 +45,6 @@ suite "Basic arithmetics tests":
     let A = @[x, y, z].toRow
     let B = @[x, y*x*y + z*2-5*x + x^4*z, z].toCol
     echo A * B
-
 echo "Compiletime:"
 let x {.compileTime.} = newSymbol("x")
 let y {.compileTime.} = newSymbol("y")

@@ -135,7 +135,6 @@ proc t*(matrix: SymMatrix): SymMatrix = transpose(matrix)
 
 
 macro compile*(matrix: static SymMatrix): untyped =
-  discard # construct result = @[matrix.data].toTensor; result = reshape(result, matrix.rows, matrix.cols)
   var elems = nnkBracket.newTree()
   for i in 0 .. matrix.data.high:
     elems.add compileSymExpr(matrix.data[i])

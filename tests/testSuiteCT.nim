@@ -188,6 +188,15 @@ static:
     doAssert equal(ln(exp(expression)), exp(ln(expression)))
     doAssert $ln(exp(expression)) == $expression
 
+  testBlock "A bunch of expressions to check if strings are right":
+    createSymbols(x0)
+    let result1 = 1 + (x-x0) + (x-x0)^2 + (x-x0)^3 + (x-x0)^4 + (x-x0)^5
+    doAssert $result1 == "1 + x - x0 + (x - x0)^2 + (x - x0)^3 + (x - x0)^4 + (x - x0)^5"
+    let result2 = x - 1 + y - a + b - 3
+    doAssert $result2 == "-4 - a + b + x + y"
+    let result3 = (a*b)*(z + y) * x^y / a / z
+    doAssert $result3 == "b*x^y*z^-1*(y + z)"
+
   echo "Macros"
   testBlock "createVars":
     createSymbols(k, j, cool)

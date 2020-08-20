@@ -104,7 +104,7 @@ static:
   testBlock "Constant mult terms broadcast":
     let terms = 2*x + 3//2 * y^2 - 6 - z
     let result1 = 2 * terms
-    doAssert $result1 == "-12 + 4*x + -2*z + 3*y^2"
+    doAssert $result1 == "-12 + 4*x - 2*z + 3*y^2"
 
   testBlock "not equal":
     doAssert not equal(x, y)

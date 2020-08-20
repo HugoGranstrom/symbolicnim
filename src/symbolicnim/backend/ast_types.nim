@@ -174,9 +174,20 @@ proc `$`*(symNode: SymNode): string =
     #echo "Before: ", pairsSeq
     pairsSeq.sort(symNodeCmpTuple1)
     #echo "After: ", pairsSeq
-    for (term, coeff) in pairsSeq:
-      if coeff != 1 // 1:
-        result.add rationalToString(coeff) & "*" & $term & " + "
+    for i, (term, coeff) in pairsSeq:
+      var coeffStr = rationalToString(coeff)
+      if coeff < 0 // 1 and i != 0:
+        result.delete(result.high - 1, result.high) # remove "+"
+        result.add "- "
+        coeffStr = rationalToString(coeff, withSign = false)
+      elif coeff < 0 // 1 and i == 0 and symNode.constant == 0 // 1:
+        result.add "-"
+      elif coeff < 0 // 1 and i == 0 and symNode.constant != 0 // 1:
+        result.delete(result.high - 1, result.high) # remove "+"
+        result.add "- "
+        coeffStr = rationalToString(coeff, withSign = false)
+      if coeff != 1 // 1 and coeff != -1 // 1:
+        result.add coeffStr & "*" & $term & " + "
       else:
         result.add $term & " + "
     result = result[0 .. ^4]

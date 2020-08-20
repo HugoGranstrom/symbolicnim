@@ -104,7 +104,7 @@ suite "Basic arithmetics tests":
   test "Constant mult terms broadcast":
     let terms = 2*x + 3//2 * y^2 - 6 - z
     let result1 = 2 * terms
-    check $result1 == "-12 + 4*x + -2*z + 3*y^2"
+    check $result1 == "-12 + 4*x - 2*z + 3*y^2"
 
   test "not equal":
     check not equal(x, y)

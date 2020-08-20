@@ -232,13 +232,6 @@ proc `$`*(symNode: SymNode): string =
     argStr = argStr[0 .. ^3]
     result = symNode.funcName & "(" & argStr & ")"
 
-proc copySymNode*(symNode: SymNode): SymNode =
-  # shallow copy (just underlying SymNode)
-  discard
-
-proc copySymTree*(symNode: SymNode): SymNode =
-  # deep copy (all decendent nodes)
-  discard
 
 proc newSymNode*(kind: SymNodeKind): SymNode =
   result = SymNode(kind: kind)
@@ -254,3 +247,55 @@ proc newSymbolNode*(name: string): SymNode {.raises:[ValueError].} =
 proc newSymNumber*(lit: Rational[int]): SymNode =
   result = newSymNode(symNumber)
   result.lit = lit
+
+proc copySymNode*(symNode: SymNode): SymNode =
+  # shallow copy (just underlying SymNode)
+  let kind = symNode.kind
+  result = SymNode(kind: kind)
+  result.hashCache = symNode.hashCache
+  case kind
+  of symNumber:
+    result.lit = symNode.lit
+  of symSymbol:
+    result.name = symNode.name
+  of symPow:
+    result.children = symNode.children
+  of symFunc:
+    result.children = symNode.children
+    result.funcName = symNode.funcName
+  of symAdd:
+    result.constant = symNode.constant
+    result.terms = symNode.terms
+  of symMul:
+    result.coeff = symNode.coeff
+    result.products = symNode.products
+
+proc copySymTree*(symNode: SymNode): SymNode =
+  # deep copy (all decendent nodes)
+  let kind = symNode.kind
+  result = SymNode(kind: kind)
+  result.hashCache = symNode.hashCache
+  case kind
+  of symNumber:
+    result.lit = symNode.lit
+  of symSymbol:
+    result.name = symNode.name
+  of symPow:
+    result.children.add copySymTree(symNode.children[0])
+    result.children.add copySymTree(symNode.children[1])
+  of symFunc:
+    if symNode.children.len > 0:
+      for i in 0 .. symNode.children.high:
+        result.children.add copySymTree(symNode.children[i])
+    result.funcName = symNode.funcName
+  of symAdd:
+    result.constant = symNode.constant
+    for key, value in pairs(symNode.terms):
+      let copyKey = copySymTree(key)
+      result.terms[copyKey] = value # value is Rational and has value semantics
+  of symMul:
+    result.coeff = symNode.coeff
+    for key, value in pairs(symNode.products):
+      let copyKey = copySymTree(key)
+      let copyValue = copySymTree(value)
+      result.products[copyKey] = copyValue

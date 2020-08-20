@@ -16,6 +16,9 @@ proc `$`*(symExpr: SymExpr): string =
 proc equal*(a, b: SymExpr): bool =
   a.ast == b.ast
 
+proc copy*(a: SymExpr): SymExpr =
+  SymExpr(ast: copySymTree(a.ast))
+
 proc `+`*(a, b: SymExpr): SymExpr =
   SymExpr(ast: a.ast + b.ast)
 

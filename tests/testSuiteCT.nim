@@ -1,4 +1,5 @@
 import symbolicnim
+import symbolicnim/backend
 
 template testBlock(name: string, code: untyped): untyped =
   echo "Running test " & name
@@ -196,6 +197,35 @@ static:
     doAssert $result2 == "-4 - a + b + x + y"
     let result3 = (a*b)*(z + y) * x^y / a / z
     doAssert $result3 == "b*x^y*z^-1*(y + z)"
+
+  testBlock "copySymNode & copySymTree":
+    let expr1 = sin(x)
+    # we must set the hashes so it doesn't get a strange default value
+    expr1.ast.hashcache = 10
+    expr1.ast.children[0].hashcache = 10
+    doAssert expr1.ast.hashcache == 10
+    doAssert expr1.ast.children[0].hashcache == 10
+    let nodeCopy = SymExpr(ast: copySymNode(expr1.ast))
+    doAssert nodeCopy.ast.hashcache == 10
+    doAssert nodeCopy.ast.children[0].hashcache == 10
+    let treeCopy = SymExpr(ast: copySymTree(expr1.ast))
+    doAssert treeCopy.ast.hashcache == 10
+    doAssert treeCopy.ast.children[0].hashcache == 10
+    doAssert expr1.ast.hashcache == 10
+    doAssert expr1.ast.children[0].hashcache == 10
+    treeCopy.ast.hashCache = 1
+    treeCopy.ast.children[0].hashCache = 2
+    # The others shouldn't be affected:
+    doAssert expr1.ast.hashcache == 10
+    doAssert expr1.ast.children[0].hashcache == 10
+    doAssert nodeCopy.ast.hashcache == 10
+    doAssert nodeCopy.ast.children[0].hashcache == 10
+    nodeCopy.ast.hashCache = 3
+    nodeCopy.ast.children[0].hashCache = 4
+    doAssert expr1.ast.hashcache == 10 # this is unaffected because we copied it
+    doAssert expr1.ast.children[0].hashcache == 4 # this is affected because it is deeper than we copied
+    doAssert treeCopy.ast.hashcache == 1
+    doAssert treeCopy.ast.children[0].hashcache == 2
 
   echo "Macros"
   testBlock "createVars":

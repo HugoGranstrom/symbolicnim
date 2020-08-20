@@ -167,7 +167,7 @@ proc `*`*(a, b: SymNode): SymNode =
           let lit = numNode.lit
           if lit == 0 // 1:
             return newSymNumber(0 // 1)
-          result[] = addNode[] # all we want to is to copy the table
+          result = copySymNode(addNode) # all we want to is to copy the table
           result.constant = result.constant * lit
           for key in keys(result.terms):
             result.terms[key] = result.terms[key] * lit

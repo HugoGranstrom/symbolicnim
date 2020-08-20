@@ -1,6 +1,7 @@
 import unittest
 
 import symbolicnim
+import symbolicnim/backend
 
 
 suite "Basic arithmetics tests":
@@ -196,7 +197,37 @@ suite "Basic arithmetics tests":
     check $result2 == "-4 - a + b + x + y"
     let result3 = (a*b)*(z + y) * x^y / a / z
     check $result3 == "b*x^y*z^-1*(y + z)"
-    
+
+  test "copySymNode & copySymTree":
+    let expr1 = sin(x)
+    # we must set the hashes so it doesn't get a strange default value
+    expr1.ast.hashcache = 10
+    expr1.ast.children[0].hashcache = 10
+    check expr1.ast.hashcache == 10
+    check expr1.ast.children[0].hashcache == 10
+    let nodeCopy = SymExpr(ast: copySymNode(expr1.ast))
+    check nodeCopy.ast.hashcache == 10
+    check nodeCopy.ast.children[0].hashcache == 10
+    let treeCopy = SymExpr(ast: copySymTree(expr1.ast))
+    check treeCopy.ast.hashcache == 10
+    check treeCopy.ast.children[0].hashcache == 10
+    check expr1.ast.hashcache == 10
+    check expr1.ast.children[0].hashcache == 10
+    treeCopy.ast.hashCache = 1
+    treeCopy.ast.children[0].hashCache = 2
+    # The others shouldn't be affected:
+    check expr1.ast.hashcache == 10
+    check expr1.ast.children[0].hashcache == 10
+    check nodeCopy.ast.hashcache == 10
+    check nodeCopy.ast.children[0].hashcache == 10
+    nodeCopy.ast.hashCache = 3
+    nodeCopy.ast.children[0].hashCache = 4
+    check expr1.ast.hashcache == 10 # this is unaffected because we copied it
+    check expr1.ast.children[0].hashcache == 4 # this is affected because it is deeper than we copied
+    check treeCopy.ast.hashcache == 1
+    check treeCopy.ast.children[0].hashcache == 2
+
+
 
   echo "Macros"
   test "createVars":

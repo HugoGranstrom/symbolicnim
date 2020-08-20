@@ -1,13 +1,13 @@
 # Package
 
-version       = "0.2.1"
+version       = "0.2.2"
 author        = "HugoGranstrom"
 description   = "A symbolic algebra library written in Nim"
 license       = "MIT"
 srcDir        = "src"
 
 task test, "Runs the test suite":
-  const filenames = ["tests/testSuite.nim"]
+  const filenames = ["tests/testSuite.nim", "tests/testSuiteCT.nim"]
   when defined(windows):
     const binaryExt = ".exe"
   else:
@@ -24,4 +24,4 @@ task test, "Runs the test suite":
 
 # Dependencies
 
-requires "nim >= 1.3.5"
+requires "nim >= 1.2.6"

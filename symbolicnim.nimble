@@ -25,3 +25,5 @@ task test, "Runs the test suite":
 # Dependencies
 
 requires "nim >= 1.2.6"
+requires "arraymancer >= 0.5"
+requires "terminaltables"

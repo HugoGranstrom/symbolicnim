@@ -33,7 +33,7 @@ static:
     let result1 = x + y
     doAssert $result1 == "x + y"
     let result2 = x + y + z + a + b
-    doAssert $result2 == "x + b + y + a + z"
+    doAssert $result2 == "a + b + x + y + z"
   
   testBlock "Add same variables":
     let result1 = x + x
@@ -55,21 +55,21 @@ static:
 
   testBlock "Multiplication different variables":
     let result1 = a * b
-    doAssert $result1 == "b*a"
+    doAssert $result1 == "a*b"
     let result2 = a * b * z*y
-    doAssert $result2 == "b*y*a*z"
+    doAssert $result2 == "a*b*y*z"
 
   testBlock "Multiplication same variables":
     let result1 = a * a
     doAssert $result1 == "a^2"
     let result2 = a * a * b * a
-    doAssert $result2 == "b*a^3"
+    doAssert $result2 == "a^3*b"
 
   testBlock "Division different variables":
     let result1 = x / y
     doAssert $result1 == "x*y^-1"
     let result2 = x * y / (a*b)
-    doAssert $result2 == "x*b^-1*y*a^-1"
+    doAssert $result2 == "a^-1*b^-1*x*y"
 
   testBlock "Division same variables":
     let result1 = x / x
@@ -85,7 +85,7 @@ static:
     let result2 = x ^ -6 * x ^ 4
     doAssert $result2 == "x^-2"
     let result3 = (a + b + 1) ^ 2 * (b + 1 + a) ^ 3
-    doAssert $result3 == "(1 + b + a)^5"
+    doAssert $result3 == "(1 + a + b)^5"
   
   testBlock "Exponent to exponent":
     let result1 = (x ^ 3) ^ y
@@ -146,7 +146,7 @@ static:
   testBlock "diff x^x":
     let xToX = x^x
     let diff1 = diff(xToX, x)
-    doAssert $diff1 == "x^x*ln(x) + x^x"
+    doAssert $diff1 == "x^x + x^x*ln(x)"
     doAssert equal(diff1, x^x + ln(x)*x^x)
 
   testBlock "sin":
@@ -228,7 +228,7 @@ suite "Basic arithmetics tests":
     let result1 = x + y
     check $result1 == "x + y"
     let result2 = x + y + z + a + b
-    check $result2 == "x + b + y + a + z"
+    check $result2 == "a + b + x + y + z"
   
   test "Add same variables":
     let result1 = x + x
@@ -250,21 +250,21 @@ suite "Basic arithmetics tests":
 
   test "Multiplication different variables":
     let result1 = a * b
-    check $result1 == "b*a"
+    check $result1 == "a*b"
     let result2 = a * b * z*y
-    check $result2 == "b*y*a*z"
+    check $result2 == "a*b*y*z"
 
   test "Multiplication same variables":
     let result1 = a * a
     check $result1 == "a^2"
     let result2 = a * a * b * a
-    check $result2 == "b*a^3"
+    check $result2 == "a^3*b"
 
   test "Division different variables":
     let result1 = x / y
     check $result1 == "x*y^-1"
     let result2 = x * y / (a*b)
-    check $result2 == "x*b^-1*y*a^-1"
+    check $result2 == "a^-1*b^-1*x*y"
 
   test "Division same variables":
     let result1 = x / x
@@ -280,7 +280,7 @@ suite "Basic arithmetics tests":
     let result2 = x ^ -6 * x ^ 4
     check $result2 == "x^-2"
     let result3 = (a + b + 1) ^ 2 * (b + 1 + a) ^ 3
-    check $result3 == "(1 + b + a)^5"
+    check $result3 == "(1 + a + b)^5"
   
   test "Exponent to exponent":
     let result1 = (x ^ 3) ^ y
@@ -341,7 +341,7 @@ suite "Basic arithmetics tests":
   test "diff x^x":
     let xToX = x^x
     let diff1 = diff(xToX, x)
-    check $diff1 == "x^x*ln(x) + x^x"
+    check $diff1 == "x^x + x^x*ln(x)"
     check equal(diff1, x^x + ln(x)*x^x)
 
   test "sin":

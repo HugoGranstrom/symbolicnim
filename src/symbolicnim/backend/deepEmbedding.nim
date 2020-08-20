@@ -147,18 +147,43 @@ proc `*`*(a, b: SymNode): SymNode =
         result.products[base] = exponent
         result.products[singleNode] = newSymNumber(1 // 1)
     else:
-      if a == b:
-        return a ^ newSymNumber(2 // 1)
-      if a.kind == symNumber:
-        result.coeff *= a.lit
-      else:
-        result.products[a] = newSymNumber(1 // 1)
-      if b.kind == symNumber:
-        result.coeff *= b.lit
-      else:
-        result.products[b] = newSymNumber(1 // 1)
-      if result.coeff == 0 // 1:
-        return newSymNumber(0 // 1)
+      block innerBlock:
+        let aIsAdd = a.kind == symAdd
+        let bIsAdd = b.kind == symAdd
+        let aIsNumber = a.kind == symNumber
+        let bIsNumber = b.kind == symNumber
+        if aIsAdd and bIsAdd:
+          discard # just continue
+        elif aIsAdd and bIsNumber or bIsAdd and aIsNumber:
+          # simplify by expanding 2*(x+y)->2*x + 2*y
+          # just copy the terms and for loop over keys and multiply value by the number.
+          var addNode, numNode: SymNode
+          if aIsAdd:
+            addNode = a
+            numNode = b
+          else:
+            addNode = b
+            numNode = a
+          let lit = numNode.lit
+          if lit == 0 // 1:
+            return newSymNumber(0 // 1)
+          result[] = addNode[] # all we want to is to copy the table
+          result.constant = result.constant * lit
+          for key in keys(result.terms):
+            result.terms[key] = result.terms[key] * lit
+          break innerBlock # we don't want to run the code below if we've come this far
+        if a == b:
+          return a ^ newSymNumber(2 // 1)
+        if a.kind == symNumber:
+          result.coeff *= a.lit
+        else:
+          result.products[a] = newSymNumber(1 // 1)
+        if b.kind == symNumber:
+          result.coeff *= b.lit
+        else:
+          result.products[b] = newSymNumber(1 // 1)
+        if result.coeff == 0 // 1:
+          return newSymNumber(0 // 1)
   if result.kind == symMul and result.products.len == 0:
     return newSymNumber(result.coeff)
   elif result.kind == symMul and result.products.len == 1 and result.coeff == 1 // 1: # 1*x^y = x^y

@@ -109,20 +109,36 @@ proc `<`*(a, b: SymNode): bool =
       if aChild >= bChild: return false
     return true
   of symPow:
-    return a.children[0] < b.children[0] and a.children[1] < b.children[1]
+    if a.children[0] < b.children[0]: return true
+    elif a.children[0] == b.children[0]:
+      if a.children[1] < b.children[1]: return true
+      return false
+    return false
+    #return a.children[0] < b.children[0] and a.children[1] < b.children[1]
   of symAdd:
-    if a.constant >= b.constant or a.terms.len >= b.terms.len: return false
+    # constant shouldn't be a first line of defence. Rather the last!
+    # use symNodeCmpTuple1 on pairs and parse int -> bool
+    # we must fix `-` as well. x - (y - x) should expand...
+
+    if a.terms.len >= b.terms.len: return false
+    var pairsSeq = zip(toSeq pairs a.terms, toSeq pairs b.terms)
+    for (aPair, bPair) in pairsSeq:
+      let cmpVal = symNodeCmpTuple1(aPair, bPair)
+      if cmpVal >= 0: return false
+    #[
     for (aKey, bKey) in zip(toSeq keys(a.terms), toSeq keys(b.terms)):
       if aKey >= bKey: return false
     for (aCoeff, bCoeff) in zip(toSeq values(a.terms), toSeq values(b.terms)):
       if aCoeff >= bCoeff: return false
+    ]#
     return true
   of symMul:
-    if a.coeff >= b.coeff or a.products.len >= b.products.len: return false
+    if a.products.len >= b.products.len: return false
     for (aKey, bKey) in zip(toSeq keys(a.products), toSeq keys(b.products)):
       if aKey >= bKey: return false
     for (aVal, bVal) in zip(toSeq values(a.products), toSeq values(b.products)):
       if aVal >= bVal: return false
+    #a.coeff >= b.coeff or 
     return true
 
 proc symNodeCmp*(x, y: SymNode): int =
@@ -131,7 +147,11 @@ proc symNodeCmp*(x, y: SymNode): int =
   return 1
 
 proc symNodeCmpTuple1*(x, y: tuple[key: SymNode, value: Rational[int]]): int =
-  if x[0] == y[0] and x[1] == y[1]: return 0
+  #if x[0] == y[0] and x[1] == y[1]: return 0
+  if x[0] == y[0]:
+    if x[1] == y[1]: return 0
+    if x[1] < y[1]: return -1
+    return 1
   if x[0] < y[0]: return -1 # we only sort on the "term", not the coeff, as the term will be unique
   #elif x[1] < y[1]: echo "-1";return -1
   return 1
@@ -151,7 +171,9 @@ proc `$`*(symNode: SymNode): string =
     if symNode.constant != 0 // 1:
       result.add rationalToString(symNode.constant) & " + "
     var pairsSeq = toSeq pairs(symNode.terms)
+    #echo "Before: ", pairsSeq
     pairsSeq.sort(symNodeCmpTuple1)
+    #echo "After: ", pairsSeq
     for (term, coeff) in pairsSeq:
       if coeff != 1 // 1:
         result.add rationalToString(coeff) & "*" & $term & " + "

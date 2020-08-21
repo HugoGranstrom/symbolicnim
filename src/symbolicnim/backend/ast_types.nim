@@ -89,8 +89,26 @@ proc hashOld*(symNode: SymNode): Hash =
   #return result
 ]#
 proc `==`*(a, b: SymNode): bool =
-  hash(a) == hash(b) # This works assuming we have a good hash algorithm
-  #a[] == b[]
+  #hash(a) == hash(b) # This works assuming we have a good hash algorithm
+  if hash(a) != hash(b): return false
+  if a.kind != b.kind: return false
+  case a.kind # they are the same kind here
+  of symNumber:
+    if a.lit != b.lit: return false
+  of symSymbol:
+    if a.name != b.name: return false
+  of symFunc:
+    if a.funcName != b.funcName: return false
+    if a.children != b.children: return false
+  of symPow:
+    if a.children != b.children: return false
+  of symAdd:
+    if a.constant != b.constant: return false
+    if a.terms != b.terms: return false
+  of symMul:
+    if a.coeff != b.coeff: return false
+    if a.products != b.products: return false
+  return true
 
 proc `<`*(a, b: SymNode): bool =
   if ord(a.kind) < ord(b.kind):

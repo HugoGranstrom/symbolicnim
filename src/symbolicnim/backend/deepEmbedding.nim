@@ -364,6 +364,97 @@ proc diff*(symNode: SymNode, dVars: seq[SymNode]): SymNode =
   for i in 1 .. dVars.high:
     result = diff_internal(result, dVars[i])
 
+
+proc reEval*(symNode: SymNode): SymNode =
+  discard # copyTree and then recurse down. Bottom up!
+
+proc subs*(src, oldNode, newNode: SymNode): SymNode
+
+proc tableSubsAdd*(src, oldNode, newNode: SymNode): Table[SymNode, Rational[int]] =
+  echo "In tablesubs"
+  for key in keys(src.terms):
+    let newKey = subs(key, oldNode, newNode)
+    if newKey in result:
+      result[newKey] = result[newKey] + src.terms[key]
+    else:
+      result[newKey] = src.terms[key] # we get a problem if newKey is same for both. subs(x + y, x, y) will give this problem. Fixed!
+    
+proc tableSubsMul*(src, oldNode, newNode: SymNode): Table[SymNode, SymNode] =
+  for key in keys(src.products):
+    let newKey = subs(key, oldNode, newNode)
+    if newKey in result:
+      result[newKey] = result[newKey] + src.products[key]
+    else:
+      result[newKey] = src.products[key]
+
+proc subsSymbol*(src: var SymNode, oldNode, newNode: SymNode) =
+  echo "in subsSymbol"
+  assert oldNode.kind == symSymbol
+  case src.kind
+  of symNumber:
+    return
+  of symSymbol:
+    if oldNode == src:
+      src = newNode
+  of symFunc, symPow:
+    if src.children.len > 0:
+      for i in 0 .. src.children.high:
+        subsSymbol(src.children[i], oldNode, newNode)
+  of symAdd:
+    echo "In add"
+    src.terms = tableSubsAdd(src, oldNode, newNode)   
+  of symMul:
+    src.products = tableSubsMul(src, oldNode, newNode) 
+
+proc subsAdd*(src: var SymNode, oldNode, newNode: SymNode) =
+  assert oldNode.kind == symAdd
+  case src.kind
+  of symNumber, symSymbol: return
+  of symFunc, symPow:
+    if src.children.len > 0:
+      for i in 0 .. src.children.high:
+        subsAdd(src.children[i], oldNode, newNode)
+  of symMul:
+    src.products = tableSubsMul(src, oldNode, newNode)
+  of symAdd:
+    let oldKeys = toSeq keys(oldNode.terms)
+    var allIn = true
+    for key in oldKeys:
+      if key notin src.terms:
+        allIn = false
+    if allIn:
+      # del old keys and add the new ones
+      for key in oldKeys:
+        src.terms.del(key)
+      src.terms[newNode] = 1 // 1
+    else:
+      # apply subs to all as above.
+      src.terms = tableSubsAdd(src, oldNode, newNode) 
+    
+
+
+proc subs*(src, oldNode, newNode: SymNode): SymNode =
+  if oldNode.kind == symNumber: raise newException(ValueError, "SymbolicNim doesn't have support for replacing numbers with another expression")
+  # is there a problem in here?:
+  result = copySymTree(src) # make a deep copy we can mutate
+  let newNode = copySymTree(newNode)
+  case oldNode.kind
+  of symSymbol:
+    echo "symbol"
+    subsSymbol(result, oldNode, newNode)
+  of symFunc:
+    discard
+  of symPow:
+    discard
+  of symAdd:
+    echo "add"
+    subsAdd(result, oldNode, newNode)
+  of symMul:
+    discard
+  of symNumber:
+    # shouldn't reach here!
+    raise newException(ValueError, "SymbolicNim doesn't have support for replacing numbers with another expression")
+
 iterator items*(symNode: SymNode): SymNode =
   case symNode.kind
   of symNumber, symSymbol, symPow:

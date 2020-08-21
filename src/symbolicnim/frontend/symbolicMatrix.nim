@@ -60,20 +60,20 @@ proc toSymMatrix*(s: seq[seq[SymExpr]], rowMajor = true): SymMatrix =
         result[i, j] = s[j][i]
 
 proc toRow*(s: seq[SymExpr]): SymMatrix =
-  let nrows = s.len
-  assert nrows > 0, "Seq can't be empty to create a SymMatrix"
-  new result
-  result.data = s
-  result.rows = nrows
-  result.cols = 1
-
-proc toCol*(s: seq[SymExpr]): SymMatrix =
   let ncols = s.len
   assert ncols > 0, "Seq can't be empty to create a SymMatrix"
   new result
   result.data = s
   result.rows = 1
   result.cols = ncols
+
+proc toCol*(s: seq[SymExpr]): SymMatrix =
+  let nrows = s.len
+  assert nrows > 0, "Seq can't be empty to create a SymMatrix"
+  new result
+  result.data = s
+  result.rows = nrows
+  result.cols = 1
 
 
 
@@ -132,6 +132,27 @@ proc transpose*(matrix: SymMatrix): SymMatrix =
       result[i, j] = matrix[j, i]
 
 proc t*(matrix: SymMatrix): SymMatrix = transpose(matrix)
+
+
+template mapIt*(matrix: SymMatrix, f: untyped): SymMatrix =
+    block:
+      var it {.inject.}: SymExpr
+      let nrows = matrix.rows
+      let ncols = matrix.cols
+      var result = newSymMatrix(nrows, ncols)
+      for i in 0 .. result.data.high:
+          it = matrix.data[i]
+          it = f
+          result.data[i] = it
+      result
+
+template applyIt*(matrix: SymMatrix, f: untyped) =
+    block:
+      var it {.inject.}: SymExpr
+      for i in 0 .. matrix.data.high:
+          it = matrix.data[i]
+          it = f
+          matrix.data[i] = it
 
 
 macro compile*(matrix: static SymMatrix): untyped =

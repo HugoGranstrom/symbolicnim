@@ -26,7 +26,7 @@ suite "Basic arithmetics tests":
 
   test "Negate variable":
     let result1 = -x
-    check $result1 == "-1*x"
+    check $result1 == "-x"
 
   test "Add different variables":
     let result1 = x + y
@@ -159,7 +159,7 @@ suite "Basic arithmetics tests":
     check $cos(x*y) == "cos(x*y)"
     check $cos(sym_pi) == "-1"
     check $cos(0 // 1) == "1"
-    check $diff(cos(x), x) == "-1*sin(x)"
+    check $diff(cos(x), x) == "-sin(x)"
     check $diff(cos(2*x), x) == "-2*sin(2*x)"
 
   test "tan":

@@ -210,7 +210,9 @@ proc `$`*(symNode: SymNode): string =
         result.add $term & " + "
     result = result[0 .. ^4]
   of symMul:
-    if symNode.coeff != 1 // 1:
+    if symNode.coeff == -1 // 1:
+      result.add "-"
+    elif symNode.coeff != 1 // 1:
       result.add rationalToString(symNode.coeff) & "*"
     var pairsSeq = toSeq pairs(symNode.products)
     pairsSeq.sort(symNodeCmpTuple2)

@@ -26,7 +26,7 @@ static:
 
   testBlock "Negate variable":
     let result1 = -x
-    doAssert $result1 == "-1*x"
+    doAssert $result1 == "-x"
 
   testBlock "Add different variables":
     let result1 = x + y
@@ -159,7 +159,7 @@ static:
     doAssert $cos(x*y) == "cos(x*y)"
     doAssert $cos(sym_pi) == "-1"
     doAssert $cos(0 // 1) == "1"
-    doAssert $diff(cos(x), x) == "-1*sin(x)"
+    doAssert $diff(cos(x), x) == "-sin(x)"
     doAssert $diff(cos(2*x), x) == "-2*sin(2*x)"
 
   testBlock "tan":

@@ -226,6 +226,13 @@ static:
     doAssert expr1.ast.children[0].hashcache == 4 # this is affected because it is deeper than we copied
     doAssert treeCopy.ast.hashcache == 1
     doAssert treeCopy.ast.children[0].hashcache == 2
+  
+  testBlock "Iterate over SymNode":
+    let symNodes = @[x, 5, x^4, sin(x*y), a + b - z * 6 + x^(2-a), x*y*3/a * (b - 3) / (x + x + y)]
+    let correctStrings = @[@["x"], @["5"], @["x^4"], @["x*y"], @["a", "b", "-6*z", "x^(2 - a)"], @["3", "a^-1", "x", "y", "-3 + b", "(2*x + y)^-1"]]
+    for i, node in symNodes:
+      for j, child in node:
+        doAssert $child == correctStrings[i][j]
 
   echo "Macros"
   testBlock "createVars":

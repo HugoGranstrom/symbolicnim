@@ -1,4 +1,4 @@
-import macros
+import macros, sequtils
 import ../backend
 
 type SymExpr* = object
@@ -18,6 +18,17 @@ proc equal*(a, b: SymExpr): bool =
 
 proc copy*(a: SymExpr): SymExpr =
   SymExpr(ast: copySymTree(a.ast))
+
+iterator items*(symExpr: SymExpr): SymExpr =
+  let itemSeq = toSeq items(symExpr.ast)
+  for sym in itemSeq:
+    yield SymExpr(ast: sym)
+
+iterator pairs*(symExpr: SymExpr): (int, SymExpr) =
+  let itemsSeq = toSeq items(symExpr.ast)
+  for i, sym in itemsSeq:
+    yield (i, SymExpr(ast: sym))
+
 
 proc `+`*(a, b: SymExpr): SymExpr =
   SymExpr(ast: a.ast + b.ast)

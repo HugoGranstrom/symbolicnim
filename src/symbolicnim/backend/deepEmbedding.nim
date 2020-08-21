@@ -1,4 +1,4 @@
-import rationals, math, tables, sequtils, macros
+import rationals, math, tables, sequtils, macros, algorithm
 import
   ./ast_types,
   ./compileAST,
@@ -364,6 +364,32 @@ proc diff*(symNode: SymNode, dVars: seq[SymNode]): SymNode =
   for i in 1 .. dVars.high:
     result = diff_internal(result, dVars[i])
 
+iterator items*(symNode: SymNode): SymNode =
+  case symNode.kind
+  of symNumber, symSymbol, symPow:
+    yield symNode
+  of symFunc:
+    for child in symNode.children:
+      yield child
+  of symAdd:
+    if symNode.constant != 0 // 1:
+      yield newSymNumber(symNode.constant)
+    var terms = toSeq pairs(symNode.terms)
+    terms.sort(symNodeCmpTuple1)
+    for (term, coeff) in terms:
+      yield newSymNumber(coeff) * term
+  of symMul:
+    if symNode.coeff != 1 // 1:
+      yield newSymNumber(symNode.coeff)
+    var factors = toSeq pairs(symNode.products)
+    factors.sort(symNodeCmpTuple2)
+    for (base, exponent) in factors:
+      yield base ^ exponent
+
+iterator pairs*(symNode: SymNode): tuple[i: int, node: SymNode] =
+  let nodeIterSeq = toSeq items(symNode)
+  for i, node in nodeIterSeq:
+    yield (i: i, node: node)
 ### Builtin constants
 
 template sym_pi*(): SymNode =

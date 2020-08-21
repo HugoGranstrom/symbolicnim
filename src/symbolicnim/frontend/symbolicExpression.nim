@@ -72,6 +72,28 @@ proc cos*(a: SymExpr): SymExpr =
 proc tan*(a: SymExpr): SymExpr =
   SymExpr(ast: tan(a.ast))
 
+
+proc isNumber*(a: SymExpr): bool {.inline.} =
+  a.ast.kind == symNumber
+
+proc isSymbol*(a: SymExpr): bool {.inline.} =
+  a.ast.kind == symSymbol
+
+proc isFunc*(a: SymExpr): bool {.inline.} =
+  a.ast.kind == symFunc
+
+proc isPow*(a: SymExpr): bool {.inline.} =
+  a.ast.kind == symPow
+
+proc isAdd*(a: SymExpr): bool {.inline.} =
+  a.ast.kind == symAdd
+
+proc isMul*(a: SymExpr): bool {.inline.} =
+  a.ast.kind == symMul
+
+
+
+
 proc compileSymExpr*(symExpr: SymExpr): NimNode =
   compileSymNode(symExpr.ast)
 

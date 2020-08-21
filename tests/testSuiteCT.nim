@@ -234,6 +234,20 @@ static:
       for j, child in node:
         doAssert $child == correctStrings[i][j]
 
+  testBlock "is a ?":
+    doAssert isNumber(x - x + 1) == true
+    doAssert isNumber(2*x - x + 1) == false
+    doAssert isSymbol(x) == true
+    doAssert isSymbol(-x) == false
+    doAssert isFunc(sin(x+y)) == true
+    doAssert isFunc(-sin(x+y)) == false
+    doAssert isPow(x^2) == true
+    doAssert isPow(2*x^3) == false
+    doAssert isAdd(2*x + y) == true
+    doAssert isAdd(x*(x+y)) == false
+    doAssert isMul(x*(x+y)) == true
+    doAssert isMul(-x + 1) == false
+
   echo "Macros"
   testBlock "createVars":
     createSymbols(k, j, cool)

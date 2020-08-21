@@ -234,6 +234,20 @@ suite "Basic arithmetics tests":
       for j, child in node:
         check $child == correctStrings[i][j]
 
+  test "is a ?":
+    check isNumber(x - x + 1) == true
+    check isNumber(2*x - x + 1) == false
+    check isSymbol(x) == true
+    check isSymbol(-x) == false
+    check isFunc(sin(x+y)) == true
+    check isFunc(-sin(x+y)) == false
+    check isPow(x^2) == true
+    check isPow(2*x^3) == false
+    check isAdd(2*x + y) == true
+    check isAdd(x*(x+y)) == false
+    check isMul(x*(x+y)) == true
+    check isMul(-x + 1) == false
+
   echo "Macros"
   test "createVars":
     createSymbols(k, j, cool)

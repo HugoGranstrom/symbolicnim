@@ -19,6 +19,9 @@ proc equal*(a, b: SymExpr): bool =
 proc copy*(a: SymExpr): SymExpr =
   SymExpr(ast: copySymTree(a.ast))
 
+proc subs*(src, oldExpr, newExpr: SymExpr): SymExpr =
+  SymExpr(ast: subs(src.ast, oldExpr.ast, newExpr.ast))
+
 iterator items*(symExpr: SymExpr): SymExpr =
   let itemSeq = toSeq items(symExpr.ast)
   for sym in itemSeq:

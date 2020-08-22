@@ -22,7 +22,32 @@ proc mulToKey*(mul: SymNode): SymNode =
     result = newSymNode(symMul)
     result.products = mul.products
   
+iterator items*(symNode: SymNode): SymNode =
+  case symNode.kind
+  of symNumber, symSymbol, symPow:
+    yield symNode
+  of symFunc:
+    for child in symNode.children:
+      yield child
+  of symAdd:
+    if symNode.constant != 0 // 1:
+      yield newSymNumber(symNode.constant)
+    var terms = toSeq pairs(symNode.terms)
+    terms.sort(symNodeCmpTuple1)
+    for (term, coeff) in terms:
+      yield newSymNumber(coeff) * term
+  of symMul:
+    if symNode.coeff != 1 // 1:
+      yield newSymNumber(symNode.coeff)
+    var factors = toSeq pairs(symNode.products)
+    factors.sort(symNodeCmpTuple2)
+    for (base, exponent) in factors:
+      yield base ^ exponent
 
+iterator pairs*(symNode: SymNode): tuple[i: int, node: SymNode] =
+  let nodeIterSeq = toSeq items(symNode)
+  for i, node in nodeIterSeq:
+    yield (i: i, node: node)
 
 
 proc `^`*(a, b: SymNode): SymNode =
@@ -50,7 +75,7 @@ proc `^`*(a, b: SymNode): SymNode =
       result.products[newSymNumber(a.coeff)] = b
     for base, exponent in pairs(a.products):
       let newExponent = exponent * b
-      if newExponent.kind == symNumber and newExponent.lit != 0 // 1:
+      if not(newExponent.kind == symNumber and newExponent.lit == 0 // 1):
         result.products[base] = newExponent
     if result.products.len == 0: # 2*{} = 2
       return newSymNumber(result.coeff)
@@ -318,6 +343,18 @@ proc `-`*(a, b: SymNode): SymNode =
 proc `-`*(a: SymNode): SymNode =
   newSymNumber(-1 // 1) * a
 
+template `+=`*(a: var SymNode, b: SymNode) =
+  a = a + b
+
+template `*=`*(a: var SymNode, b: SymNode) =
+  a = a * b
+
+template `-=`*(a: var SymNode, b: SymNode) =
+  a = a - b
+
+template `/=`*(a: var SymNode, b: SymNode) =
+  a = a / b
+
 proc diff_internal*(symNode: SymNode, dVar: SymNode): SymNode =
   assert dVar.kind == symSymbol, "You can only take the derivative with respect to a symbol!"
   case symNode.kind
@@ -366,12 +403,38 @@ proc diff*(symNode: SymNode, dVars: seq[SymNode]): SymNode =
 
 
 proc reEval*(symNode: SymNode): SymNode =
-  discard # copyTree and then recurse down. Bottom up!
+  # copyTree and then recurse down. Bottom up!
+  case symNode.kind
+  of symNumber, symSymbol:
+    result = symNode
+  of symFunc: # this doesn't do simplifications like sin(0) because we can't call the constructor. Require it as well? And it must take a seq then!
+    var newChildren = newSeq[SymNode](symNode.children.len)
+    if symNode.children.len > 0:
+      for i in 0 .. symNode.children.high:
+        newChildren[i] = reEval(symNode.children[i])
+    when nimvm:
+      result = constructorProcsCT[symNode.funcName](newChildren)
+    else:
+      result = constructorProcsRT[symNode.funcName](newChildren)
+  of symPow:
+    let newBase = reEval(symNode.children[0])
+    let newExponent = reEval(symNode.children[1])
+    result = newBase ^ newExponent
+  of symAdd:
+    result = newSymNumber(symNode.constant)
+    for term, coeff in symNode.terms:
+      let newTerm = reEval(term)
+      result += newSymNumber(coeff) * newTerm
+  of symMul:
+    result = newSymNumber(symNode.coeff)
+    for base, exponent in symNode.products:
+      let newBase = reEval(base)
+      let newExponent = reEval(exponent)
+      result *= newBase ^ newExponent
 
 proc subs*(src, oldNode, newNode: SymNode): SymNode
 
 proc tableSubsAdd*(src, oldNode, newNode: SymNode): Table[SymNode, Rational[int]] =
-  echo "In tablesubs"
   for key in keys(src.terms):
     let newKey = subs(key, oldNode, newNode)
     if newKey in result:
@@ -388,7 +451,6 @@ proc tableSubsMul*(src, oldNode, newNode: SymNode): Table[SymNode, SymNode] =
       result[newKey] = src.products[key]
 
 proc subsSymbol*(src: var SymNode, oldNode, newNode: SymNode) =
-  echo "in subsSymbol"
   assert oldNode.kind == symSymbol
   case src.kind
   of symNumber:
@@ -396,15 +458,17 @@ proc subsSymbol*(src: var SymNode, oldNode, newNode: SymNode) =
   of symSymbol:
     if oldNode == src:
       src = newNode
+      return
   of symFunc, symPow:
     if src.children.len > 0:
       for i in 0 .. src.children.high:
         subsSymbol(src.children[i], oldNode, newNode)
   of symAdd:
-    echo "In add"
-    src.terms = tableSubsAdd(src, oldNode, newNode)   
+    let newTerms = tableSubsAdd(src, oldNode, newNode)
+    src.terms = newTerms
   of symMul:
-    src.products = tableSubsMul(src, oldNode, newNode) 
+    let newProducts = tableSubsMul(src, oldNode, newNode)
+    src.products = newProducts
 
 proc subsAdd*(src: var SymNode, oldNode, newNode: SymNode) =
   assert oldNode.kind == symAdd
@@ -415,7 +479,8 @@ proc subsAdd*(src: var SymNode, oldNode, newNode: SymNode) =
       for i in 0 .. src.children.high:
         subsAdd(src.children[i], oldNode, newNode)
   of symMul:
-    src.products = tableSubsMul(src, oldNode, newNode)
+    let newProducts = tableSubsMul(src, oldNode, newNode)
+    src.products = newProducts
   of symAdd:
     let oldKeys = toSeq keys(oldNode.terms)
     var allIn = true
@@ -429,58 +494,48 @@ proc subsAdd*(src: var SymNode, oldNode, newNode: SymNode) =
       src.terms[newNode] = 1 // 1
     else:
       # apply subs to all as above.
-      src.terms = tableSubsAdd(src, oldNode, newNode) 
+      let newTerms = tableSubsAdd(src, oldNode, newNode)
+      src.terms = newTerms
     
+proc subsFunc*(src: var SymNode, oldNode, newNode: SymNode) =
+  assert oldNode.kind == symFunc
+  case src.kind
+  of symFunc:
+    if oldNode == src:
+      src = newNode
+  of symNumber, symSymbol: discard
+  of symPow:
+    for i in 0 .. src.children.high:
+      subsFunc(src.children[i], oldNode, newNode)
+  of symAdd:
+    let newTerms = tableSubsAdd(src, oldNode, newNode)
+    src.terms = newTerms
+  of symMul:
+    let newProducts = tableSubsMul(src, oldNode, newNode)
+    src.products = newProducts
 
+proc subsPow*(src: var SymNode, oldNode, newNode: SymNode) = discard
 
 proc subs*(src, oldNode, newNode: SymNode): SymNode =
-  if oldNode.kind == symNumber: raise newException(ValueError, "SymbolicNim doesn't have support for replacing numbers with another expression")
-  # is there a problem in here?:
   result = copySymTree(src) # make a deep copy we can mutate
   let newNode = copySymTree(newNode)
   case oldNode.kind
   of symSymbol:
-    echo "symbol"
     subsSymbol(result, oldNode, newNode)
   of symFunc:
-    discard
+    subsFunc(result, oldNode, newNode)
   of symPow:
     discard
   of symAdd:
-    echo "add"
     subsAdd(result, oldNode, newNode)
   of symMul:
     discard
   of symNumber:
     # shouldn't reach here!
     raise newException(ValueError, "SymbolicNim doesn't have support for replacing numbers with another expression")
+  result = reEval(result) # fixes things like x + 0 = x and 1*x = x. As well as x + (a+b) = x + a + b
 
-iterator items*(symNode: SymNode): SymNode =
-  case symNode.kind
-  of symNumber, symSymbol, symPow:
-    yield symNode
-  of symFunc:
-    for child in symNode.children:
-      yield child
-  of symAdd:
-    if symNode.constant != 0 // 1:
-      yield newSymNumber(symNode.constant)
-    var terms = toSeq pairs(symNode.terms)
-    terms.sort(symNodeCmpTuple1)
-    for (term, coeff) in terms:
-      yield newSymNumber(coeff) * term
-  of symMul:
-    if symNode.coeff != 1 // 1:
-      yield newSymNumber(symNode.coeff)
-    var factors = toSeq pairs(symNode.products)
-    factors.sort(symNodeCmpTuple2)
-    for (base, exponent) in factors:
-      yield base ^ exponent
 
-iterator pairs*(symNode: SymNode): tuple[i: int, node: SymNode] =
-  let nodeIterSeq = toSeq items(symNode)
-  for i, node in nodeIterSeq:
-    yield (i: i, node: node)
 ### Builtin constants
 
 template sym_pi*(): SymNode =
@@ -488,7 +543,9 @@ template sym_pi*(): SymNode =
 
 ### Builtin SymFuncs
 
-proc exp*(symNode: SymNode): SymNode =
+proc exp_construct*(symNodes: seq[SymNode]): SymNode =
+  assert symNodes.len == 1, "exp takes 1 input, not " & $symNodes.len
+  let symNode = symNodes[0]
   if symNode.kind == symFunc and symNode.funcName == "ln":
     return symNode.children[0]
   if symNode.kind == symNumber and symNode.lit == 0 // 1:
@@ -497,6 +554,9 @@ proc exp*(symNode: SymNode): SymNode =
   result.funcName = "exp"
   result.nargs = 1
   result.children.add symNode
+
+proc exp*(symNode: SymNode): SymNode =
+  exp_construct(@[symNode])
 
 proc diffExp(symNode: SymNode, dVar: SymNode): SymNode =
   assert symNode.kind == symFunc and symNode.funcName == "exp"
@@ -511,9 +571,11 @@ proc compileExp(symNode: SymNode): NimNode =
   result = quote do:
     exp(`childNimNode`)
 
-registerSymFunc("exp", diffExp, compileExp)
+registerSymFunc("exp", exp_construct, diffExp, compileExp)
 
-proc ln*(symNode: SymNode): SymNode =
+proc ln_construct*(symNodes: seq[SymNode]): SymNode =
+  assert symNodes.len == 1, "ln takes 1 input, not " & $symNodes.len
+  let symNode = symNodes[0]
   if symNode.kind == symFunc and symNode.funcName == "exp":
     return symNode.children[0]
   if symNode.kind == symNumber and symNode.lit == 1 // 1:
@@ -523,6 +585,9 @@ proc ln*(symNode: SymNode): SymNode =
   result.funcName = "ln"
   result.nargs = 1
   result.children.add symNode
+
+proc ln*(symNode: SymNode): SymNode =
+  ln_construct(@[symNode])
 
 proc diffLn(symNode: SymNode, dVar: SymNode): SymNode =
   assert symNode.kind == symFunc and symNode.funcName == "ln"
@@ -535,9 +600,11 @@ proc compileLn(symNode: SymNode): NimNode =
   result = quote do:
     ln(`childNimNode`)
 
-registerSymFunc("ln", diffLn, compileLn)
+registerSymFunc("ln", ln_construct, diffLn, compileLn)
 
-proc sin*(symNode: SymNode): SymNode =
+proc sin_construct*(symNodes: seq[SymNode]): SymNode =
+  assert symNodes.len == 1, "sin takes 1 input, not " & $symNodes.len
+  let symNode = symNodes[0]
   if symNode.kind == symNumber and symNode.lit == 0 // 1:
     return newSymNumber(0 // 1)
   elif symNode.kind == symSymbol and symNode == sym_pi:
@@ -547,7 +614,12 @@ proc sin*(symNode: SymNode): SymNode =
   result.nargs = 1
   result.children.add symNode
 
-proc cos*(symNode: SymNode): SymNode =
+proc sin*(symNode: SymNode): SymNode =
+  sin_construct(@[symNode])
+
+proc cos_construct*(symNodes: seq[SymNode]): SymNode =
+  assert symNodes.len == 1, "cos takes 1 input, not " & $symNodes.len
+  let symNode = symNodes[0]
   if symNode.kind == symNumber and symNode.lit == 0 // 1:
     return newSymNumber(1 // 1)
   elif symNode.kind == symSymbol and symNode == sym_pi:
@@ -557,7 +629,12 @@ proc cos*(symNode: SymNode): SymNode =
   result.nargs = 1
   result.children.add symNode
 
-proc tan*(symNode: SymNode): SymNode =
+proc cos*(symNode: SymNode): SymNode =
+  cos_construct(@[symNode])
+
+proc tan_construct*(symNodes: seq[SymNode]): SymNode =
+  assert symNodes.len == 1, "tan takes 1 input, not " & $symNodes.len
+  let symNode = symNodes[0]
   if symNode.kind == symNumber and symNode.lit == 0 // 1:
     return newSymNumber(0 // 1)
   elif symNode.kind == symSymbol and symNode == sym_pi:
@@ -566,6 +643,9 @@ proc tan*(symNode: SymNode): SymNode =
   result.funcName = "tan"
   result.nargs = 1
   result.children.add symNode
+
+proc tan*(symNode: SymNode): SymNode =
+  tan_construct(@[symNode])
 
 proc diffSin(symNode: SymNode, dVar: SymNode): SymNode =
   assert symNode.kind == symFunc and symNode.funcName == "sin"
@@ -600,6 +680,6 @@ proc compileTan(symNode: SymNode): NimNode =
   result = quote do:
     tan(`childNimNode`)
 
-registerSymFunc("sin", diffSin, compileSin)
-registerSymFunc("cos", diffCos, compileCos)
-registerSymFunc("tan", diffTan, compileTan)
+registerSymFunc("sin", sin_construct, diffSin, compileSin)
+registerSymFunc("cos", cos_construct, diffCos, compileCos)
+registerSymFunc("tan", tan_construct, diffTan, compileTan)

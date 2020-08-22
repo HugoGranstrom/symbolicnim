@@ -208,7 +208,8 @@ proc `$`*(symNode: SymNode): string =
         result.add coeffStr & "*" & $term & " + "
       else:
         result.add $term & " + "
-    result = result[0 .. ^4]
+    if result.len > 4:
+      result = result[0 .. ^4]
   of symMul:
     if symNode.coeff == -1 // 1:
       result.add "-"
@@ -231,7 +232,8 @@ proc `$`*(symNode: SymNode): string =
         else:
           exponentStr = $exponent
         result.add baseStr & "^" & exponentStr & "*"
-    result = result[0 .. ^2]
+    if result.len > 2:
+      result = result[0 .. ^2]
   of symPow:
     let base = symNode.children[0]
     let exponent = symNode.children[1]

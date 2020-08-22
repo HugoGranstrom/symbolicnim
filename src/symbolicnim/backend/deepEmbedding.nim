@@ -66,7 +66,8 @@ proc `^`*(a, b: SymNode): SymNode =
       return newSymNumber(1 // 1)
   if a.kind == symPow: # (x ^ y) ^ b = x ^ (y*b)
     result = a.children[0] ^ (a.children[1] * b)
-  elif a.kind == symMul: # (x*y)^b = x^b * y^b. (2*x)^b = 2^b * x^b * 1 (if b != symNumber, move coeff into table)
+  elif a.kind == symMul and b.kind == symNumber: # uncomment this to only simplify exponents that are numbers: (x*y)^2 -> x^2*y2 but (x*y)^(x+y) remains
+    # (x*y)^b = x^b * y^b. (2*x)^b = 2^b * x^b * 1 (if b != symNumber, move coeff into table)
     # (x^2*y^3)^b = x^(2*b) * y^(3*b)
     result = newSymNode(symMul) 
     if b.kind == symNumber and isInteger(b.lit): # coeff can keep it's place, just take it to the power of b.lit. b.lit must be integer though.

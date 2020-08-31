@@ -488,11 +488,21 @@ proc subsAdd*(src: var SymNode, oldNode, newNode: SymNode) =
     for key in oldKeys:
       if key notin src.terms:
         allIn = false
+        break
+      else:
+        if src.terms[key] != oldNode.terms[key]:
+          allIn = false
+          break
     if allIn:
       # del old keys and add the new ones
       for key in oldKeys:
         src.terms.del(key)
-      src.terms[newNode] = 1 // 1
+      if newNode in src.terms:
+        src.terms[newNode] = src.terms[newNode] + 1 // 1
+      else:
+        src.terms[newNode] = 1 // 1
+      if oldNode.constant == src.constant:
+        src.constant = 0 // 1
     else:
       # apply subs to all as above.
       let newTerms = tableSubsAdd(src, oldNode, newNode)
@@ -515,7 +525,72 @@ proc subsFunc*(src: var SymNode, oldNode, newNode: SymNode) =
     let newProducts = tableSubsMul(src, oldNode, newNode)
     src.products = newProducts
 
-proc subsPow*(src: var SymNode, oldNode, newNode: SymNode) = discard
+proc subsPow*(src: var SymNode, oldNode, newNode: SymNode) =
+  assert oldNode.kind == symPow
+  case src.kind
+  of symNumber, symSymbol: discard
+  of symPow:
+    if src == oldNode:
+      src = newNode
+    else:
+      for i in 0 .. src.children.high:
+        subsPow(src.children[i], oldNode, newNode)
+  of symFunc:
+    if src.children.len > 0:
+      for i in 0 .. src.children.high:
+        subsPow(src.children[i], oldNode, newNode)
+  of symAdd:
+    let newTerms = tableSubsAdd(src, oldNode, newNode)
+    src.terms = newTerms
+  of symMul:
+    discard # for over pairs. If match, switch. Otherwise recurse!
+    # check against exponents first, then do the untangling of the base. Skip doing this! Sympy doesn't do it.
+    for (base, exponent) in pairs(src.products):
+      if base == oldNode.children[0] and exponent == oldNode.children[1]:
+        src.products.del(base)
+        src.products[newNode] = newSymNumber(1 // 1)
+      else:
+        var base = base
+        var exponent = exponent
+        subsPow(base, oldNode, newNode)
+        subsPow(exponent, oldNode, newNode)
+
+proc subsMul*(src: var SymNode, oldNode, newNode: SymNode) =
+  assert oldNode.kind == symMul
+  case src.kind
+  of symNumber, symSymbol: discard
+  of symFunc, symPow:
+    if src.children.len > 0:
+      for i in 0 .. src.children.high:
+        subsAdd(src.children[i], oldNode, newNode)
+  of symAdd:
+    let newTerms = tableSubsAdd(src, oldNode, newNode)
+    src.terms = newTerms
+  of symMul:
+    let oldKeys = toSeq keys(oldNode.products)
+    var allIn = true
+    for key in oldKeys:
+      if key notin src.products:
+        allIn = false
+        break
+      else:
+        if src.products[key] != oldNode.products[key]:
+          allIn = false
+          break
+    if allIn:
+      # del old keys and add the new ones
+      for key in oldKeys:
+        src.products.del(key)
+      if newNode in src.products:
+        src.products[newNode] = src.products[newNode] + newSymNumber(1 // 1)
+      else:
+        src.products[newNode] = newSymNumber(1 // 1)
+      if oldNode.coeff == src.coeff:
+        src.coeff = 1 // 1
+    else:
+      # apply subs to all as above.
+      let newProducts = tableSubsMul(src, oldNode, newNode)
+      src.products = newProducts
 
 proc subs*(src, oldNode, newNode: SymNode): SymNode =
   result = copySymTree(src) # make a deep copy we can mutate
@@ -526,13 +601,12 @@ proc subs*(src, oldNode, newNode: SymNode): SymNode =
   of symFunc:
     subsFunc(result, oldNode, newNode)
   of symPow:
-    discard
+    subsPow(result, oldNode, newNode)
   of symAdd:
     subsAdd(result, oldNode, newNode)
   of symMul:
-    discard
+    subsMul(result, oldNode, newNode)
   of symNumber:
-    # shouldn't reach here!
     raise newException(ValueError, "SymbolicNim doesn't have support for replacing numbers with another expression")
   result = reEval(result) # fixes things like x + 0 = x and 1*x = x. As well as x + (a+b) = x + a + b
 

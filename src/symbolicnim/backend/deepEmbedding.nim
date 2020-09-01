@@ -449,7 +449,8 @@ proc tableSubsMul*(src, oldNode, newNode: SymNode): Table[SymNode, SymNode] =
     if newKey in result:
       result[newKey] = result[newKey] + src.products[key]
     else:
-      result[newKey] = src.products[key]
+      #result[newKey] = src.products[key]
+      result[newKey] = subs(src.products[key], oldNode, newNode)
 
 proc subsSymbol*(src: var SymNode, oldNode, newNode: SymNode) =
   assert oldNode.kind == symSymbol
@@ -514,6 +515,10 @@ proc subsFunc*(src: var SymNode, oldNode, newNode: SymNode) =
   of symFunc:
     if oldNode == src:
       src = newNode
+    else:
+      if src.children.len > 0:
+        for i in 0 .. src.children.high:
+          subsFunc(src.children[i], oldNode, newNode)
   of symNumber, symSymbol: discard
   of symPow:
     for i in 0 .. src.children.high:
@@ -562,7 +567,7 @@ proc subsMul*(src: var SymNode, oldNode, newNode: SymNode) =
   of symFunc, symPow:
     if src.children.len > 0:
       for i in 0 .. src.children.high:
-        subsAdd(src.children[i], oldNode, newNode)
+        subsMul(src.children[i], oldNode, newNode)
   of symAdd:
     let newTerms = tableSubsAdd(src, oldNode, newNode)
     src.terms = newTerms

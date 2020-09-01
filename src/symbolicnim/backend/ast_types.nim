@@ -64,7 +64,7 @@ proc hash*(symNode: SymNode): Hash =
       var pairsSeq = toSeq(pairs(symNode.products))
       pairsSeq.sort(symNodeCmpTuple2)
       result = result !& hash(pairsSeq)
-    of symFunc: result = result !& hash(symNode.funcName) !& hash(symNode.nargs)
+    of symFunc: result = result !& hash(symNode.funcName)# !& hash(symNode.nargs)
     of symPow: discard
   result = !$result
   symNode.hashCache = result

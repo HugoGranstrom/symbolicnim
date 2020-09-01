@@ -12,6 +12,11 @@ suite "Basic arithmetics tests":
     let a = newSymbol("a")
     let b = newSymbol("b")
   
+  test "Hej":
+    #echo (x + y).ast.subs(x.ast, newSymNumber(1//1))
+    echo subs(sin(x + y), x + y, z)
+    echo (x + x*y*z).subs(x*y, z)
+
   test "0*x = 0":
     let result1 = 0 * x
     check $result1 == "0"
@@ -247,6 +252,23 @@ suite "Basic arithmetics tests":
     check isAdd(x*(x+y)) == false
     check isMul(x*(x+y)) == true
     check isMul(-x + 1) == false
+
+  echo "Subs"
+  test "subs symbol":
+    check $subs(x, x, z) == "z"
+    check $subs(2 + y + x, x, z) == "2 + y + z"
+    check $subs(sin(x), x, z) == "sin(z)"
+    check $subs(2 * x * y, x , z) == "2*y*z"
+    check $subs(x^x, x, z) == "z^z"
+
+  test "subs func":
+    check $subs(sin(x), x, 0) == "0"
+    check $subs(sin(x), sin(x), a) == "a"
+    check $subs(2+x+sin(2*y), 2*y, b) == "2 + x + sin(b)"
+    check $subs(2+x+sin(2*y), sin(2*y), b) == "2 + b + x"
+    check $subs(2*x*sin(2*y), sin(2*y), b) == "2*b*x"
+    check $subs(sin(sin(x)), sin(x), z) == "sin(z)"
+    check $subs(sin(x)^sin(x), sin(x), a) == "a^a"
 
   echo "Macros"
   test "createVars":

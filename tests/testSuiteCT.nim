@@ -247,6 +247,58 @@ static:
     doAssert isAdd(x*(x+y)) == false
     doAssert isMul(x*(x+y)) == true
     doAssert isMul(-x + 1) == false
+  
+  echo "Subs"
+  testBlock "subs symbol":
+    doAssert $subs(x, x, z) == "z"
+    doAssert $subs(2 + y + x, x, z) == "2 + y + z"
+    doAssert $subs(sin(x), x, z) == "sin(z)"
+    doAssert $subs(2 * x * y, x , z) == "2*y*z"
+    doAssert $subs(x^x, x, z) == "z^z"
+
+  testBlock "subs func":
+    doAssert $subs(sin(x), x, 0) == "0"
+    doAssert $subs(sin(x), sin(x), a) == "a"
+    doAssert $subs(2+x+sin(2*y), 2*y, b) == "2 + x + sin(b)"
+    doAssert $subs(2+x+sin(2*y), sin(2*y), b) == "2 + b + x"
+    doAssert $subs(2*x*sin(2*y), sin(2*y), b) == "2*b*x"
+    doAssert $subs(sin(sin(x)), sin(x), z) == "sin(z)"
+    doAssert $subs(sin(x)^sin(x), sin(x), a) == "a^a"
+
+  testBlock "subs pow":
+    doAssert $subs(x^2, x^2, z) == "z"
+    doAssert $subs(x, x^2, z) == "x"
+    doAssert $subs(1 + x + x^y, x^y, z) == "1 + x + z"
+    doAssert $subs(3*y*x^y, x^y, z) == "3*y*z"
+    doAssert $subs(sin(y^x), y^x, z) == "sin(z)"
+
+  testBlock "subs mul":
+    doAssert $subs(x, 2*x, z) == "x"
+    doAssert $subs(2*x, 2*x, z) == "z"
+    doAssert $subs(2*x*y, 2*x, z) == "y*z"
+    doAssert $subs(2*x^z*y, 2*x, z) == "2*x^z*y"
+    doAssert $subs(2*x*y*z, y*z, a) == "2*a*x"
+    doAssert $subs(3 + x*y + z, x*y, a) == "3 + a + z"
+    doAssert $subs(3 + 2*x*y + z, x*y, a) == "3 + 2*a + z"
+    doAssert $subs((x*y)^(x*y), x*y, z) == "z^z"
+
+  testBlock "subs add":
+    doAssert $subs(x, 2 + x, z) == "x"
+    doAssert $subs(2 + x, 2 + x, z) == "z"
+    doAssert $subs(2 + x + y, 2 + x, z) == "y + z"
+    doAssert $subs(2 + 2*x + y, 2 + x, z) == "2 + 2*x + y"
+    doAssert $subs(2 + x + y + z, y + z, a) == "2 + a + x"
+    doAssert $subs(3*z*(x + y), x + y, a) == "3*a*z"
+    doAssert $subs(3*z*(x + y + z), x + y, a) == "3*z*(a + z)"
+    doAssert $subs((x+y)^(x+y), x+y, a) == "a^a"
+  
+  echo "Expansions"
+  testBlock "Taylor expansion":
+    let t = taylor(sin(x), x, 0, 5)
+    doAssert $t == "x - 1/6*x^3 + 1/120*x^5"
+    let t2 = taylor(sin(x), x, a, 3)
+    #check $t2 == "sin(a) - 1/6*cos(a)*(-a + x)^3 - 1/2*sin(a)*(-a + x)^2 + cos(a)*(-a + x)"
+    doAssert equal(t2, sin(a) - 1//6*cos(a)*(-a + x)^3 - 1//2*sin(a)*(-a + x)^2 + cos(a)*(-a + x))
 
   echo "Macros"
   testBlock "createVars":

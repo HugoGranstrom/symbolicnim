@@ -7,3 +7,5 @@ import ./frontend/symbolicExpression
 export symbolicExpression
 import ./frontend/symbolicMatrix
 export symbolicMatrix
+import ./frontend/expansions
+export expansions

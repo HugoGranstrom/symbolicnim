@@ -6,6 +6,7 @@ type SymExpr* = object
 
 converter intToSymExpr*(d: int): SymExpr = SymExpr(ast: newSymNumber(d.toRational))
 converter rationalToSymEXpr*(r: Rational[int]): SymExpr = SymExpr(ast: newSymNumber(r))
+# how to handle inf? convert floats? or just export a oo? Should it be a symbol then? Not really, should be a number tbh. We get a problem with Rational then though...
 
 proc newSymbol*(name: string): SymExpr =
   SymExpr(ast: newSymbolNode(name))

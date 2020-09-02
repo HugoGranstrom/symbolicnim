@@ -270,6 +270,41 @@ suite "Basic arithmetics tests":
     check $subs(sin(sin(x)), sin(x), z) == "sin(z)"
     check $subs(sin(x)^sin(x), sin(x), a) == "a^a"
 
+  test "subs pow":
+    check $subs(x^2, x^2, z) == "z"
+    check $subs(x, x^2, z) == "x"
+    check $subs(1 + x + x^y, x^y, z) == "1 + x + z"
+    check $subs(3*y*x^y, x^y, z) == "3*y*z"
+    check $subs(sin(y^x), y^x, z) == "sin(z)"
+
+  test "subs mul":
+    check $subs(x, 2*x, z) == "x"
+    check $subs(2*x, 2*x, z) == "z"
+    check $subs(2*x*y, 2*x, z) == "y*z"
+    check $subs(2*x^z*y, 2*x, z) == "2*x^z*y"
+    check $subs(2*x*y*z, y*z, a) == "2*a*x"
+    check $subs(3 + x*y + z, x*y, a) == "3 + a + z"
+    check $subs(3 + 2*x*y + z, x*y, a) == "3 + 2*a + z"
+    check $subs((x*y)^(x*y), x*y, z) == "z^z"
+
+  test "subs add":
+    check $subs(x, 2 + x, z) == "x"
+    check $subs(2 + x, 2 + x, z) == "z"
+    check $subs(2 + x + y, 2 + x, z) == "y + z"
+    check $subs(2 + 2*x + y, 2 + x, z) == "2 + 2*x + y"
+    check $subs(2 + x + y + z, y + z, a) == "2 + a + x"
+    check $subs(3*z*(x + y), x + y, a) == "3*a*z"
+    check $subs(3*z*(x + y + z), x + y, a) == "3*z*(a + z)"
+    check $subs((x+y)^(x+y), x+y, a) == "a^a"
+
+  echo "Expansions"
+  test "Taylor expansion":
+    let t = taylor(sin(x), x, 0, 5)
+    check $t == "x - 1/6*x^3 + 1/120*x^5"
+    let t2 = taylor(sin(x), x, a, 3)
+    #check $t2 == "sin(a) - 1/6*cos(a)*(-a + x)^3 - 1/2*sin(a)*(-a + x)^2 + cos(a)*(-a + x)"
+    check equal(t2, sin(a) - 1//6*cos(a)*(-a + x)^3 - 1//2*sin(a)*(-a + x)^2 + cos(a)*(-a + x))
+
   echo "Macros"
   test "createVars":
     createSymbols(k, j, cool)

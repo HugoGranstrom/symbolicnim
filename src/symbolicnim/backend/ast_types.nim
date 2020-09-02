@@ -136,7 +136,6 @@ proc `<`*(a, b: SymNode): bool =
   of symAdd:
     # constant shouldn't be a first line of defence. Rather the last!
     # use symNodeCmpTuple1 on pairs and parse int -> bool
-    # we must fix `-` as well. x - (y - x) should expand...
 
     if a.terms.len >= b.terms.len: return false
     var pairsSeq = zip(toSeq pairs a.terms, toSeq pairs b.terms)
@@ -152,11 +151,15 @@ proc `<`*(a, b: SymNode): bool =
     return true
   of symMul:
     if a.products.len >= b.products.len: return false
-    for (aKey, bKey) in zip(toSeq keys(a.products), toSeq keys(b.products)):
+    # we will get an arbitrary order from keys() so this may not really give consitent results!
+    #[for (aKey, bKey) in zip(toSeq keys(a.products), toSeq keys(b.products)):
       if aKey >= bKey: return false
     for (aVal, bVal) in zip(toSeq values(a.products), toSeq values(b.products)):
-      if aVal >= bVal: return false
-    #a.coeff >= b.coeff or 
+      if aVal >= bVal: return false]#
+    var pairsSeq = zip(toSeq pairs a.products, toSeq pairs b.products)
+    for (aPair, bPair) in pairsSeq:
+      let cmpVal = symNodeCmpTuple2(aPair, bPair)
+      if cmpVal >= 0: return false
     return true
 
 proc symNodeCmp*(x, y: SymNode): int =
@@ -200,6 +203,7 @@ proc `$`*(symNode: SymNode): string =
         coeffStr = rationalToString(coeff, withSign = false)
       elif coeff < 0 // 1 and i == 0 and symNode.constant == 0 // 1:
         result.add "-"
+        coeffStr = rationalToString(coeff, withSign = false)
       elif coeff < 0 // 1 and i == 0 and symNode.constant != 0 // 1:
         result.delete(result.high - 1, result.high) # remove "+"
         result.add "- "

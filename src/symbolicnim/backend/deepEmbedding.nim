@@ -64,6 +64,8 @@ proc `^`*(a, b: SymNode): SymNode =
       return newSymNumber(0 // 1)
     elif a.lit == 1 // 1: # 1 ^ b = 1
       return newSymNumber(1 // 1)
+  if a.kind == symNumber and b.kind == symNumber and b.lit.isInteger:
+    result = pow(a.lit, b.lit.num).newSymNumber
   if a.kind == symPow: # (x ^ y) ^ b = x ^ (y*b)
     result = a.children[0] ^ (a.children[1] * b)
   elif a.kind == symMul and b.kind == symNumber: # uncomment this to only simplify exponents that are numbers: (x*y)^2 -> x^2*y2 but (x*y)^(x+y) remains
@@ -423,12 +425,17 @@ proc reEval*(symNode: SymNode): SymNode =
     result = newBase ^ newExponent
   of symAdd:
     result = newSymNumber(symNode.constant)
-    for term, coeff in symNode.terms:
+    var terms = toSeq pairs(symNode.terms)
+    terms.sort(symNodeCmpTuple1)
+    for (term, coeff) in terms:
       let newTerm = reEval(term)
       result += newSymNumber(coeff) * newTerm
   of symMul:
     result = newSymNumber(symNode.coeff)
-    for base, exponent in symNode.products:
+    # sort before iterating!
+    var products = toSeq pairs(symNode.products)
+    products.sort(symNodeCmpTuple2)
+    for (base, exponent) in products:
       let newBase = reEval(base)
       let newExponent = reEval(exponent)
       result *= newBase ^ newExponent

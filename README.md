@@ -87,3 +87,6 @@ let frac = 1 // 3 # exactly 1 / 3 and not 0.3333333333332 or something.
 
 # Status: Alpha
 This package is in it's very first stages and will have tonnes of bugs everywhere. If you find something not working, I would very much appreciate if you filed a issue :D
+
+# Credits
+- @jiro4989 for adding the CI workflow.

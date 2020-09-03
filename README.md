@@ -30,21 +30,6 @@ let expr5 = expr1 - expr2
 let expr6 = expr4 / expr3
 ```
 
-## Generating efficient Nim procs
-One of SymbolicNim's main features is that it can do the symbolic calculations at compiletime and generate a fast Nim proc that get's optimized by the compiler. It could be useful if it's used in a tight loop for example. The syntax for generating the procs is to use the `generate` macro:
-```nim
-let x {.compileTime.} = newSymbol("x") # we must define all the variables we want to use at compileTime with the {.compileTime.} pragma.
-let y {.compileTime.} = newSymbol("y")
-let z {.compileTime.} = newSymbol("z")
-let exprToCompile {.compileTime.} = exp(x*y) ^ sin(z/x) + 1 # this is the expression we want to generate into a function
-exprToCompile.generate:
-  proc f(x, y, z: float): float
-  proc fInline(x, y, z: float): float {.inline.} # you can define how many procs as you want with pragmas and different types
-
-echo f(2.0, 3.0, 4.0)
-```
-That wasn't that hard, wasn't it? If you are not sure of the types of the arguments you can try `auto` and see if it works. One thing to be aware of is that you must be careful when mixing floats and ints. 
-
 ## Derivatives
 SymbolicNim can perform symbolic differentitation:
 ```nim
@@ -72,6 +57,24 @@ SymbolicNim can calculate Taylor expansions up to 20 terms at the moment. If we 
 ```nim
 echo taylor(sin(x), x, 0, 10)
 ```
+
+# Generating efficient Nim procs
+One of SymbolicNim's main features is that it can do the symbolic calculations at compiletime and generate a fast Nim proc that get's optimized by the compiler. It could be useful if it's used in a tight loop for example. The syntax for generating the procs is to use the `generate` macro:
+```nim
+let x {.compileTime.} = newSymbol("x") # we must define all the variables we want to use at compileTime with the {.compileTime.} pragma.
+let y {.compileTime.} = newSymbol("y")
+let z {.compileTime.} = newSymbol("z")
+let exprToCompile {.compileTime.} = exp(x*y) ^ sin(z/x) + 1 # this is the expression we want to generate into a function
+exprToCompile.generate:
+  proc f(x, y, z: float): float
+  proc fInline(x, y, z: float): float {.inline.} # you can define how many procs as you want with pragmas and different types
+
+echo f(2.0, 3.0, 4.0)
+```
+That wasn't that hard, wasn't it? If you are not sure of the types of the arguments you can try `auto` and see if it works. One thing to be aware of is that you must be careful when mixing floats and ints. 
+
+# Symbolic Matricies
+
 
 ## Constants
 Symbolic constants are represented as Nim's stdlib `Rational[int]` from [rationals](https://nim-lang.org/docs/rationals.html). Ints and floats are automatically converted to it when entered. Hence if you input a float it will be converted to the best matching fraction and the output may look quite ugly. If you want to write a fraction exactly you can use the `//` proc that will create a Rational:

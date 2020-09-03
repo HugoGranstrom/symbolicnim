@@ -31,6 +31,7 @@ proc taylor*(f: SymExpr, x, x0: SymExpr, n: Natural): TaylorExpansion =
   ## x0 is the point we want to expand around
   ## n is the order of the expansion
   assert x.isSymbol, "x must be a symbol"
+  assert n <= 20, "n must be 20 or lower to avoid overflow"
   result.derivs.add f
   result.evalPoint = x0
   result.derivVar = x

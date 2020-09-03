@@ -1,4 +1,7 @@
 # SymbolicNim
+
+![test](https://github.com/HugoGranstrom/symbolicnim/workflows/test/badge.svg)
+
 A symbolic library written purely in Nim with the ability to compile expressions into efficient functions.
 
 ## Requires Nim 1.2.6 to run!

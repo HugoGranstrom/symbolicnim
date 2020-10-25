@@ -25,6 +25,7 @@ proc oldBench(N: int): bool =
 proc newBench(N: int): bool =
   createSymbols(x, y, z)
   var total: SymExpr = 0
+  var subsTemp: SymExpr = 0
   for i in 0 .. N:
     if i mod 2 == 0:
       if i mod 3 == 0:
@@ -41,9 +42,12 @@ proc newBench(N: int): bool =
       elif i mod 3 == 2:
         total = total ^ (3 // 2)
     total = exp(total)
+    total = total.subs(x, z, false)
+  #for i in 0 .. N:
+  #  discard taylor(sin(x), x, 0, 20)
 
-let M = 100
+let M = 10
 let N = 100
 
-timeit(oldBench(M), N, "Old")
+#timeit(oldBench(M), N, "Old")
 timeit(newBench(M), N, "New")

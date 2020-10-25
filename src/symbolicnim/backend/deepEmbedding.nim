@@ -60,7 +60,8 @@ proc `^`*(a, b: SymNode): SymNode =
     elif b.lit == 1 // 1: # a ^ 1 = a
       return a
   if a.kind == symNumber:
-    if a.lit == 0 // 1: # 0 ^ b = 0
+    # must handle 1 / 0, so negative exponents
+    if a.lit == 0 // 1: # 0 ^ b = 0 
       return newSymNumber(0 // 1)
     elif a.lit == 1 // 1: # 1 ^ b = 1
       return newSymNumber(1 // 1)
@@ -440,11 +441,12 @@ proc reEval*(symNode: SymNode): SymNode =
       let newExponent = reEval(exponent)
       result *= newBase ^ newExponent
 
-proc subs*(src, oldNode, newNode: SymNode): SymNode
+proc subs*(src, oldNode, newNode: SymNode, doSink = false): SymNode
 
 proc tableSubsAdd*(src, oldNode, newNode: SymNode): Table[SymNode, Rational[int]] =
+  # it would be nice if we could just modify src's table inplace
   for key in keys(src.terms):
-    let newKey = subs(key, oldNode, newNode)
+    let newKey = subs(key, oldNode, newNode)#, true)
     if newKey in result:
       result[newKey] = result[newKey] + src.terms[key]
     else:
@@ -452,12 +454,12 @@ proc tableSubsAdd*(src, oldNode, newNode: SymNode): Table[SymNode, Rational[int]
     
 proc tableSubsMul*(src, oldNode, newNode: SymNode): Table[SymNode, SymNode] =
   for key in keys(src.products):
-    let newKey = subs(key, oldNode, newNode)
+    let newKey = subs(key, oldNode, newNode)#, true)
     if newKey in result:
       result[newKey] = result[newKey] + src.products[key]
     else:
       #result[newKey] = src.products[key]
-      result[newKey] = subs(src.products[key], oldNode, newNode)
+      result[newKey] = subs(src.products[key], oldNode, newNode)#, true)
 
 proc subsSymbol*(src: var SymNode, oldNode, newNode: SymNode) =
   assert oldNode.kind == symSymbol
@@ -604,8 +606,12 @@ proc subsMul*(src: var SymNode, oldNode, newNode: SymNode) =
       let newProducts = tableSubsMul(src, oldNode, newNode)
       src.products = newProducts
 
-proc subs*(src, oldNode, newNode: SymNode): SymNode =
-  result = copySymTree(src) # make a deep copy we can mutate
+proc subs*(src, oldNode, newNode: SymNode, doSink = false): SymNode =
+  if doSink:
+    # It's the users responsability that no subtree of `src` is used again.
+    result = src
+  else:
+    result = copySymTree(src) # make a deep copy we can mutate
   let newNode = copySymTree(newNode)
   case oldNode.kind
   of symSymbol:
